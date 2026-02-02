@@ -1,0 +1,19 @@
+{
+  "login": {
+    "title": "Login",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Login",
+    "error": "Invalid username or password."
+  },
+  "home": {
+    "title": "Welcome to the Home page",
+    "greeting": "Hello, {{name}}!"
+  },
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "vietnamese": "Vietnamese",
+    "logout": "Logout"
+  }
+}

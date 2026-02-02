@@ -1,0 +1,19 @@
+{
+  "login": {
+    "title": "Đăng nhập",
+    "username": "Tên đăng nhập",
+    "password": "Mật khẩu",
+    "submit": "Đăng nhập",
+    "error": "Tên đăng nhập hoặc mật khẩu không đúng."
+  },
+  "home": {
+    "title": "Chào mừng bạn đến trang chủ",
+    "greeting": "Xin chào, {{name}}!"
+  },
+  "common": {
+    "language": "Ngôn ngữ",
+    "english": "Tiếng Anh",
+    "vietnamese": "Tiếng Việt",
+    "logout": "Đăng xuất"
+  }
+}

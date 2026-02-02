@@ -52,4 +52,4 @@ export type EmailVerificationTokenDoc = InferSchemaType<
  */
 export const EmailVerificationTokenModel =
   mongoose.models.EmailVerificationToken ||
-  mongoose.model<EmailVerificationTokenDoc>("EmailVerificationToken", EmailVerificationTokenSchema);
+  mongoose.model<EmailVerificationTokenDoc>("email_verification_token", EmailVerificationTokenSchema);

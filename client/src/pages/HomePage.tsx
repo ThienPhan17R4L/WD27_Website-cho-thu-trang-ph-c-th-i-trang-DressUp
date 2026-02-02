@@ -13,7 +13,7 @@ export default function HomePage() {
     <div>
       <Header activePath="/" cartCount={0} user={user} />
       <main className="bg-white">
-        <HeroCarousel onPrimaryCta={() => (window.location.href = "/products")} />
+        <HeroCarousel />
         <CategoryTiles />
         <ProductGrid />
         <PromoStrip />

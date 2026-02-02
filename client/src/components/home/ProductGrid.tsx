@@ -1,96 +1,83 @@
-import type { Product } from "../../types/Product";
-import { Section } from "../common/Section";
+import { useMemo } from "react";
+import { Container } from "../common/Container";
 import { Button } from "../common/Button";
+import { ProductCard, type ProductCardData } from "../common/ProductCard";
 
-type Props = {
-  products?: Product[];
-};
+// Demo images (bạn thay bằng ảnh thật trong src/assets/products)
+import p1 from "@/assets/hero/hero-01.jpg";
+import p2 from "@/assets/hero/hero-02.jpg";
+import p3 from "@/assets/hero/hero-03.jpg";
+import p4 from "@/assets/hero/hero-01.jpg";
 
-function formatVnd(n: number) {
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(n);
-}
-
-export function ProductGrid({ products }: Props) {
-  const mock: Product[] = products ?? [
-    {
-      id: "p1",
-      name: "Pearl White Midi Dress",
-      brand: "Studio",
-      pricePerDay: 150000,
-      tag: "New",
-      imageUrl:
-        "https://images.unsplash.com/photo-1520975867597-0f85e7f4e5b1?auto=format&fit=crop&w=1400&q=80",
-    },
-    {
-      id: "p2",
-      name: "Black Evening Dress",
-      brand: "Noir",
-      pricePerDay: 180000,
-      tag: "Top",
-      imageUrl:
-        "https://images.unsplash.com/photo-1520975958225-79e5b1d97a3f?auto=format&fit=crop&w=1400&q=80",
-    },
-    {
-      id: "p3",
-      name: "Lace Party Dress",
-      brand: "Aura",
-      pricePerDay: 160000,
-      imageUrl:
-        "https://images.unsplash.com/photo-1520975693411-6a3a62d3531a?auto=format&fit=crop&w=1400&q=80",
-    },
-    {
-      id: "p4",
-      name: "Classic Cocktail Dress",
-      brand: "Eve",
-      pricePerDay: 170000,
-      imageUrl:
-        "https://images.unsplash.com/photo-1520975919290-35bfe97b2b52?auto=format&fit=crop&w=1400&q=80",
-    },
-  ];
+export function ProductGrid() {
+  const products: ProductCardData[] = useMemo(
+    () => [
+      {
+        id: "p1",
+        name: "OCCASION DRESS",
+        imageSrc: p1,
+        fromPrice: 120,
+      },
+      {
+        id: "p2",
+        name: "WHITE DRESS",
+        imageSrc: p2,
+        fromPrice: 90,
+      },
+      {
+        id: "p3",
+        name: "SKINNY DRESS",
+        imageSrc: p3,
+        fromPrice: 100,
+        rating: 5,
+      },
+      {
+        id: "p4",
+        name: "MAXI DRESS",
+        imageSrc: p4,
+        fromPrice: 50,
+      },
+    ],
+    []
+  );
 
   return (
-    <Section title="Featured dresses" subtitle="Gợi ý nổi bật hôm nay">
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {mock.map((p) => (
-          <div
-            key={p.id}
-            className="group overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
-          >
-            <div className="relative aspect-[3/4] overflow-hidden bg-slate-50">
-              <img
-                src={p.imageUrl}
-                alt={p.name}
-                className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                loading="lazy"
-              />
-              {p.tag && (
-                <span className="absolute left-3 top-3 rounded-full bg-rose-600 px-2.5 py-1 text-xs font-medium text-white">
-                  {p.tag}
-                </span>
-              )}
+    <section className="bg-white py-14 sm:py-20">
+      <Container>
+        {/* Header row */}
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="h-px w-10 bg-[#e6c1b3]" />
+              <span className="text-[12px] font-semibold tracking-[0.3em] text-[#e6c1b3] uppercase">
+                FOR ANY OCCASION
+              </span>
             </div>
 
-            <div className="p-4">
-              {p.brand && <p className="text-xs text-slate-500">{p.brand}</p>}
-              <h3 className="mt-1 line-clamp-2 text-sm font-semibold text-slate-900">
-                {p.name}
-              </h3>
-              <div className="mt-2 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-900">
-                  {formatVnd(p.pricePerDay)} <span className="text-xs text-slate-500">/ngày</span>
-                </p>
-                <Button className="px-3 py-1.5 text-xs">Rent</Button>
-              </div>
-            </div>
+            <h2 className="mt-6 font-serif text-[56px] leading-[0.95] tracking-tight text-slate-900 sm:text-[70px]">
+              Find Gorgeous Dress
+              <br />
+              For Any Occasion
+            </h2>
           </div>
-        ))}
-      </div>
 
-      <div className="mt-8 flex justify-center">
-        <Button variant="ghost" className="border border-slate-200">
-          View all products
-        </Button>
-      </div>
-    </Section>
+          <div className="lg:pt-4">
+            <Button
+              variant="hero"
+              onClick={() => (window.location.href = "/products")}
+            >
+              VIEW ALL DRESSES
+            </Button>
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          {products.map((p) => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </Container>
+    </section>
   );
 }

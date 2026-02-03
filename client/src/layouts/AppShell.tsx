@@ -1,36 +1,40 @@
-import React from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTranslation } from 'react-i18next';
+import React, { useMemo } from "react";
+import { Outlet, To, useLocation, useNavigate } from "react-router-dom";
+import { Header } from "@/components/common/Header";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AppShell: React.FC = () => {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { t, i18n } = useTranslation();
+  const location = useLocation();
 
-  // Xử lý khi bấm logout
+  const activePath = useMemo(() => {
+    const p = location.pathname;
+    if (p.startsWith("/products")) return "/products";
+    if (p.startsWith("/rent")) return "/rent";
+    if (p.startsWith("/occasions")) return "/occasions";
+    if (p.startsWith("/whats-new")) return "/whats-new";
+    if (p.startsWith("/features")) return "/features";
+    if (p.startsWith("/contacts")) return "/contacts";
+    return "/";
+  }, [location.pathname]);
+
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
   };
 
   return (
-    <div>
-      <header style={{ padding: '10px', borderBottom: '1px solid #ccc' }}>
-        <h1 style={{ display: 'inline-block', marginRight: '20px' }}>Fashion Rental</h1>
-        {/* Bộ chọn ngôn ngữ */}
-        <select
-          value={i18n.language}
-          onChange={(e) => i18n.changeLanguage(e.target.value)}
-          style={{ marginRight: '20px' }}
-        >
-          <option value="en">{t('common.english')}</option>
-          <option value="vi">{t('common.vietnamese')}</option>
-        </select>
-        {/* Nút đăng xuất */}
-        <button onClick={handleLogout}>{t('common.logout')}</button>
-      </header>
-      <main style={{ padding: '20px' }}>
+    <div className="min-h-screen bg-white">
+      <Header
+        activePath={activePath}
+        cartCount={0}
+        user={user ?? null}
+        onNavigate={(href: To) => navigate(href)}
+        onLogout={handleLogout}
+      />
+
+      <main className="py-8">
         <Outlet />
       </main>
     </div>

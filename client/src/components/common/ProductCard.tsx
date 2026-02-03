@@ -1,119 +1,104 @@
-import { Button } from "../common/Button";
+import { Link } from "react-router-dom";
+import type { Product } from "@/types/product";
 
-export type ProductCardData = {
-  id: string;
-  name: string; // OCCASION DRESS
-  imageSrc: string;
-  fromPrice: number; // 120
-  rating?: number; // 0..5
-  href?: string;
-};
+const ACCENT = "rgb(213, 176, 160)";
 
-function IconLink(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
-      <path
-        d="M10.5 13.5 13.5 10.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9 15a4 4 0 0 1 0-5.7l1.3-1.3a4 4 0 0 1 5.7 0"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M15 9a4 4 0 0 1 0 5.7l-1.3 1.3a4 4 0 0 1-5.7 0"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
+function formatMoney(v: number) {
+  // bạn có thể đổi sang VND nếu muốn
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
 }
 
-function Stars({ value = 0 }: { value?: number }) {
-  const stars = Array.from({ length: 5 }, (_, i) => i < Math.round(value));
-  return (
-    <div className="flex items-center justify-center gap-0.5">
-      {stars.map((on, idx) => (
-        <span
-          key={idx}
-          className={[
-            "inline-block h-3 w-3",
-            on ? "text-[#e6c1b3]" : "text-slate-200",
-          ].join(" ")}
-          aria-hidden="true"
-        >
-          ★
-        </span>
-      ))}
-      <span className="sr-only">{value} stars</span>
-    </div>
-  );
+function getFromPrice(p: Product) {
+  if (!p.rentalTiers?.length) return null;
+  return Math.min(...p.rentalTiers.map((t) => t.price));
 }
 
-export function ProductCard({ product }: { product: ProductCardData }) {
-  const goDetail = () => {
-    if (product.href) window.location.href = product.href;
-  };
+export function ProductCard({ product }: { product: Product }) {
+  const cover = product.images?.[0] ?? "";
+  const from = getFromPrice(product);
 
   return (
     <div className="group">
-      {/* Image box */}
-      <div className="relative overflow-hidden bg-[#fbf7f4] border border-slate-100">
-        <div className="aspect-[3/5] w-full">
+      <div
+        className={[
+          "relative overflow-hidden",
+          "bg-[#f6f3ef]", // nền be giống ảnh
+          "aspect-[4/5]",
+          "flex items-center justify-center",
+        ].join(" ")}
+      >
+        {cover ? (
           <img
-            src={product.imageSrc}
+            src={cover}
             alt={product.name}
-            className="h-full w-full object-contain p-8"
+            className="h-[92%] w-auto object-contain transition-transform duration-300 group-hover:scale-[1.02]"
             loading="lazy"
           />
-        </div>
+        ) : (
+          <div className="text-sm text-slate-400">No image</div>
+        )}
 
-        {/* CTA bar overlay */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-16 flex justify-center">
-          <div className="pointer-events-auto inline-flex items-stretch shadow-[0_12px_28px_rgba(15,23,42,0.12)] opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
-            <button
-              type="button"
-              onClick={goDetail}
-              aria-label="Open product"
-              className="grid h-12 w-12 place-items-center bg-[#e6c1b3] text-white transition-colors hover:bg-[#d5b0a0] focus:outline-none focus:ring-2 focus:ring-white/60 focus:ring-offset-2 focus:ring-offset-[#fbf7f4]"
+        {/* Hover overlay */}
+        <div
+          className={[
+            "pointer-events-none absolute inset-0",
+            "flex items-center justify-center",
+            "opacity-0 transition-opacity duration-300 group-hover:opacity-100",
+          ].join(" ")}
+        >
+          <div className="pointer-events-auto inline-flex items-center">
+            <span
+              className="inline-flex h-12 w-12 items-center justify-center"
+              style={{ backgroundColor: ACCENT }}
             >
-              <IconLink className="h-5 w-5" />
-            </button>
+              {/* link icon */}
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                className="h-5 w-5 text-white"
+              >
+                <path
+                  d="M10 13a5 5 0 0 0 7.1 0l1.9-1.9a5 5 0 0 0-7.1-7.1L10.9 5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M14 11a5 5 0 0 0-7.1 0L5 12.9A5 5 0 1 0 12.1 20L13 19.1"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
 
-            <Button
-              variant="heroSolid"
-              className="h-12 rounded-none px-7"
-              onClick={() => (window.location.href = "/rent")}
+            <Link
+              to={`/products/${product.slug}`}
+              className={[
+                "h-12 px-6",
+                "inline-flex items-center justify-center",
+                "text-[12px] font-semibold tracking-[0.22em] uppercase",
+                "text-white",
+              ].join(" ")}
+              style={{ backgroundColor: ACCENT }}
             >
-              RENT A DRESS
-            </Button>
+              Rent a dress
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Meta */}
-      <div className="pt-6 text-center">
-        <div className="text-[12px] font-semibold tracking-[0.18em] text-slate-800 uppercase">
+      <div className="pt-5 text-center">
+        <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
           {product.name}
         </div>
 
-        {typeof product.rating === "number" ? (
-          <div className="mt-2">
-            <Stars value={product.rating} />
-          </div>
-        ) : (
-          <div className="mt-2 h-3" />
-        )}
-
-        <div className="mt-3 text-[12px] tracking-[0.12em] text-[#e6c1b3]">
+        <div className="mt-2 text-[12px] tracking-[0.1em] text-slate-400">
           from{" "}
-          <span className="font-serif text-[30px] leading-none tracking-tight">
-            ${product.fromPrice}
+          <span className="text-[22px] font-semibold" style={{ color: ACCENT }}>
+            {from != null ? formatMoney(from) : "—"}
           </span>
         </div>
       </div>

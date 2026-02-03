@@ -1,53 +1,50 @@
-import { NextFunction, Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import { AppError } from "../utils/errors";
 
-export function errorHandler(
-  err: any,
-  _req: Request,
-  res: Response,
-  _next: NextFunction
-) {
-  // AppError (our controlled errors)
-  if (err instanceof AppError) {
-    return res.status(err.status).json({
-      error: {
-        code: err.code,
-        message: err.message,
-        details: err.details ?? null
-      }
-    });
+export class HttpError extends Error {
+  status: number;
+  details?: any;
+
+  constructor(status: number, message: string, details?: any) {
+    super(message);
+    this.status = status;
+    this.details = details;
   }
+}
 
-  // Mongoose duplicate key -> email exists race condition
-  if (err && typeof err === "object" && (err as any).code === 11000) {
-    const keys = (err as any).keyPattern ?? {};
-    const field = Object.keys(keys)[0] ?? "field";
+export function errorHandler(err: any, _req: Request, res: Response, _next: NextFunction) {
+  // Mongoose duplicate key (e.g. slug unique)
+  if (err?.code === 11000) {
     return res.status(409).json({
-      error: {
-        code: "DUPLICATE_KEY",
-        message: `Duplicate ${field}`,
-        details: null
-      }
+      message: "Duplicate key",
+      details: err?.keyValue,
     });
   }
 
-  // Mongoose validation (should not happen often if zod is used)
+  // Mongoose validation error
   if (err instanceof mongoose.Error.ValidationError) {
     return res.status(400).json({
-      error: { code: "MONGO_VALIDATION", message: err.message, details: null }
+      message: "Validation error",
+      details: err.errors,
     });
   }
 
-  // Fallback
-  // eslint-disable-next-line no-console
-  console.error("Unhandled error:", err);
+  // Custom HttpError
+  if (err instanceof HttpError) {
+    return res.status(err.status).json({
+      message: err.message,
+      details: err.details,
+    });
+  }
 
-  return res.status(500).json({
-    error: {
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Something went wrong",
-      details: null
-    }
-  });
+  // Zod handled in validate middleware typically, but just in case
+  if (err?.name === "ZodError") {
+    return res.status(400).json({
+      message: "Validation error",
+      details: err?.issues,
+    });
+  }
+
+  console.error(err);
+  return res.status(500).json({ message: "Internal server error" });
 }

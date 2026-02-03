@@ -19,3 +19,20 @@ export function validateBody<T>(schema: ZodType<T>) {
     next();
   };
 }
+
+export function validateQuery<T>(schema: ZodType<T>) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    const parsed = schema.safeParse({ query: req.query }); // ✅ wrap
+    if (!parsed.success) {
+      const issues = parsed.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      }));
+      return next(new BadRequestError("VALIDATION_ERROR", "Invalid request query", issues));
+    }
+
+    // ✅ set back to req.query flattened
+    req.query = (parsed.data as any).query;
+    next();
+  };
+}

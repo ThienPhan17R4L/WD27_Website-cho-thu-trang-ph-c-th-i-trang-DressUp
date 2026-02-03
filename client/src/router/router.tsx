@@ -5,6 +5,8 @@ import AppShell from '@/layouts/AppShell';
 import PrivateRoute from '@/router/PrivateRoute';
 import PermissionRoute from '@/router/PermissionRoute';
 import RegisterPage from '@/pages/RegisterPage';
+import ProductsPage from '@/pages/ProductsPage';
+import ProductDetailPage from '@/pages/ProductDetailPage';
 
 const AppRouter: React.FC = () => {
   return (
@@ -12,7 +14,11 @@ const AppRouter: React.FC = () => {
       {/* Public route */}
       <Route path="/login" element={<LoginPage />} />
       <Route path='/register' element={<RegisterPage />} />
-      <Route path="/home" element={<HomePage />} />
+      <Route element={<AppShell />}>
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/products" element={<ProductsPage />} />
+        <Route path="/products/:slug" element={<ProductDetailPage />} />
+      </Route>
       {/* Protected routes (requires login) */}
       <Route element={<PrivateRoute />}>
         {/* AppShell layout wrapper for authenticated pages */}

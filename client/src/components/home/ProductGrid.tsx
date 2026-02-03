@@ -1,45 +1,16 @@
 import { useMemo } from "react";
 import { Container } from "../common/Container";
 import { Button } from "../common/Button";
-import { ProductCard, type ProductCardData } from "../common/ProductCard";
+import { ProductCard } from "../common/ProductCard";
 
-// Demo images (bạn thay bằng ảnh thật trong src/assets/products)
 import p1 from "@/assets/hero/hero-01.jpg";
 import p2 from "@/assets/hero/hero-02.jpg";
 import p3 from "@/assets/hero/hero-03.jpg";
 import p4 from "@/assets/hero/hero-01.jpg";
+import { Product } from "@/types/product";
 
 export function ProductGrid() {
-  const products: ProductCardData[] = useMemo(
-    () => [
-      {
-        id: "p1",
-        name: "OCCASION DRESS",
-        imageSrc: p1,
-        fromPrice: 120,
-      },
-      {
-        id: "p2",
-        name: "WHITE DRESS",
-        imageSrc: p2,
-        fromPrice: 90,
-      },
-      {
-        id: "p3",
-        name: "SKINNY DRESS",
-        imageSrc: p3,
-        fromPrice: 100,
-        rating: 5,
-      },
-      {
-        id: "p4",
-        name: "MAXI DRESS",
-        imageSrc: p4,
-        fromPrice: 50,
-      },
-    ],
-    []
-  );
+  const products: Product[] = [];
 
   return (
     <section className="bg-white py-14 sm:py-20">
@@ -74,7 +45,7 @@ export function ProductGrid() {
         {/* Grid */}
         <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <ProductCard key={p._id} product={p} />
           ))}
         </div>
       </Container>

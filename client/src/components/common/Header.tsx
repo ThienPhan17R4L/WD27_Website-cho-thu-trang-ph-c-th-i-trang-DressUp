@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Container } from "./Container";
 import { BrandLogo } from "./BrandLogo";
 import { User } from "@/types/auth";
@@ -45,26 +45,23 @@ function IconBag(props: React.SVGProps<SVGSVGElement>) {
 function NavLink({
   active,
   children,
-  href,
+  onClick,
 }: {
   active?: boolean;
   children: string;
-  href: string;
+  onClick: () => void;
 }) {
   return (
-    <a
-      href={href}
+    <button
+      type="button"
+      onClick={onClick}
       className={[
         "relative px-3 py-6 text-[12px] font-semibold tracking-[0.14em] uppercase",
         "transition-colors",
-        active
-          ? "text-rose-300"
-          : "text-slate-800 hover:text-rose-300",
+        active ? "text-rose-300" : "text-slate-800 hover:text-rose-300",
       ].join(" ")}
     >
       {children}
-
-      {/* Active tab */}
       {active && (
         <span className="pointer-events-none absolute left-1/2 top-full -translate-x-1/2">
           <span className="relative block h-6 w-44 bg-white shadow-[0_-1px_0_0_rgba(226,232,240,1)]" />
@@ -73,7 +70,7 @@ function NavLink({
           </span>
         </span>
       )}
-    </a>
+    </button>
   );
 }
 
@@ -103,20 +100,55 @@ function IconButton({
   );
 }
 
+function useClickOutside(
+  refs: Array<React.RefObject<HTMLElement | null>>,
+  onOutside: () => void,
+  enabled: boolean
+) {
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      const inside = refs.some((r) => r.current && r.current.contains(target));
+      if (!inside) onOutside();
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onOutside();
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [enabled, onOutside, refs]);
+}
+
 export function Header({
   activePath = "/",
   cartCount = 0,
-  user = null
+  user = null,
+  onNavigate,
+  onLogout,
+  onOpenCart,
+  onOpenSearch,
 }: {
   activePath?: string;
   cartCount?: number;
-  user?: User | null
+  user?: User | null;
+  onNavigate: (href: string) => void;
+  onLogout?: () => void;
+  onOpenCart?: () => void;
+  onOpenSearch?: () => void;
 }) {
   const nav: NavItem[] = useMemo(
     () => [
       { label: "Home", href: "/" },
       { label: "Rent a dress", href: "/rent" },
-      { label: "Find a dress", href: "/find" },
+      { label: "Find a dress", href: "/products" },
       { label: "Occasions", href: "/occasions" },
       { label: "Whats new", href: "/whats-new" },
       { label: "Features", href: "/features" },
@@ -127,26 +159,46 @@ export function Header({
 
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // --- user dropdown ---
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userBtnRef = useRef<HTMLButtonElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside([userBtnRef, userMenuRef], () => setUserMenuOpen(false), userMenuOpen);
+
+  const userActions = useMemo(
+    () => [
+      { label: "My account", href: "/account" },
+      { label: "My rentals", href: "/account/rentals" },
+      { label: "Orders", href: "/account/orders" },
+      { label: "Addresses", href: "/account/addresses" },
+    ],
+    []
+  );
+
   return (
-    // full width header wrapper
-    <header className="w-full bg-white">
-      {/* full width border */}
+    <header className="relative z-50 w-full bg-white">
       <div className="w-full border-b border-slate-200">
         <Container>
           <div className="flex h-20 items-center justify-between gap-6">
-            {/* Left: Logo */}
+            {/* Left */}
             <div className="shrink-0">
-              <BrandLogo />
+              <button type="button" onClick={() => onNavigate("/")} aria-label="Home">
+                <BrandLogo />
+              </button>
             </div>
 
-            {/* Center: Desktop Nav */}
+            {/* Center */}
             <nav className="hidden flex-1 items-stretch justify-center lg:flex">
               <div className="flex items-stretch gap-2">
                 {nav.map((item) => (
                   <NavLink
                     key={item.href}
-                    href={item.href}
                     active={item.href === activePath}
+                    onClick={() => {
+                      onNavigate(item.href);
+                      setMobileOpen(false);
+                    }}
                   >
                     {item.label}
                   </NavLink>
@@ -154,38 +206,105 @@ export function Header({
               </div>
             </nav>
 
-            {/* Right: Actions */}
+            {/* Right */}
             <div className="flex items-center gap-4">
+              {/* USER AREA */}
               {user ? (
-                <a
-                  href="/account"
-                  className="text-[11px] uppercase tracking-[0.14em] text-slate-500 hover:text-rose-300"
-                >
-                  <span className={[
-                    "text-[12px] font-semibold tracking-[0.14em] uppercase text-slate-800",
-                    "hover:text-rose-300 hover:bg-transparent",
-                    "focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-2",
-                  ].join(" ")}>
+                <div className="relative">
+                  <button
+                    ref={userBtnRef}
+                    type="button"
+                    onClick={() => setUserMenuOpen((v) => !v)}
+                    className={[
+                      "inline-flex items-center gap-2 rounded-md px-2 py-1",
+                      "text-[12px] font-semibold tracking-[0.14em] uppercase text-slate-800",
+                      "transition-colors hover:text-rose-300",
+                      "focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-2",
+                    ].join(" ")}
+                    aria-haspopup="menu"
+                    aria-expanded={userMenuOpen}
+                  >
                     {user.fullName}
-                  </span>
-                </a>
+                    <span
+                      className={[
+                        "inline-block h-2 w-2 rotate-45 border-r-2 border-b-2",
+                        userMenuOpen ? "border-rose-300" : "border-slate-400",
+                      ].join(" ")}
+                    />
+                  </button>
+
+                  {userMenuOpen && (
+                    <div
+                      ref={userMenuRef}
+                      role="menu"
+                      className={[
+                        "absolute right-0 mt-3 w-56 overflow-hidden rounded-2xl",
+                        "border border-slate-200 bg-white shadow-lg",
+                      ].join(" ")}
+                    >
+                      <div className="px-4 py-3 border-b border-slate-100">
+                        <div className="text-sm font-semibold text-slate-900 line-clamp-1">
+                          {user.fullName}
+                        </div>
+                        {user.email ? (
+                          <div className="mt-0.5 text-xs text-slate-500 line-clamp-1">{user.email}</div>
+                        ) : null}
+                      </div>
+
+                      <div className="py-2">
+                        {userActions.map((a) => (
+                          <button
+                            key={a.href}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setUserMenuOpen(false);
+                              onNavigate(a.href);
+                            }}
+                            className={[
+                              "w-full text-left px-4 py-2.5 text-sm",
+                              "text-slate-700 hover:bg-rose-50 hover:text-rose-700",
+                            ].join(" ")}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="border-t border-slate-100 p-2">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            onLogout?.();
+                          }}
+                          className={[
+                            "w-full rounded-xl px-4 py-2.5 text-left text-sm font-semibold",
+                            "text-rose-700 hover:bg-rose-50",
+                          ].join(" ")}
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
-                <a
-                  href="/login"
+                <button
+                  type="button"
+                  onClick={() => onNavigate("/login")}
                   className={[
                     "hidden text-[12px] font-semibold tracking-[0.14em] uppercase lg:block",
                     "text-slate-800 transition-colors hover:text-rose-300",
-                    "focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-2"
+                    "focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-2",
                   ].join(" ")}
                 >
                   Sign in
-                </a>
+                </button>
               )}
 
-              <IconButton
-                aria-label="Cart"
-                onClick={() => (window.location.href = "/cart")}
-              >
+              <IconButton aria-label="Cart" onClick={onOpenCart ?? (() => onNavigate("/cart"))}>
                 <IconBag className="h-5 w-5" />
                 {cartCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-300 px-1 text-[11px] font-semibold text-white">
@@ -194,14 +313,10 @@ export function Header({
                 )}
               </IconButton>
 
-              <IconButton
-                aria-label="Search"
-                onClick={() => (window.location.href = "/search")}
-              >
+              <IconButton aria-label="Search" onClick={onOpenSearch ?? (() => onNavigate("/search"))}>
                 <IconSearch className="h-5 w-5" />
               </IconButton>
 
-              {/* Mobile menu button */}
               <button
                 type="button"
                 aria-label="Open menu"
@@ -221,54 +336,70 @@ export function Header({
         </Container>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer (giữ logic cũ) */}
       {mobileOpen && (
         <div className="w-full border-b border-slate-200 bg-white lg:hidden">
           <Container>
             <div className="py-3">
-              {user ? (
-                <div className="hidden lg:flex items-center gap-2">
-                  <span className="text-[12px] font-semibold tracking-[0.14em] uppercase text-slate-800">
-                    {user.fullName}
-                  </span>
-
-                  <a
-                    href="/account"
-                    className="text-[11px] uppercase tracking-[0.14em] text-slate-500 hover:text-rose-300"
-                  >
-                    Account
-                  </a>
-                </div>
-              ) : (
-                <a
-                  href="/login"
-                  className={[
-                    "hidden text-[12px] font-semibold tracking-[0.14em] uppercase lg:block",
-                    "text-slate-800 transition-colors hover:text-rose-300",
-                  ].join(" ")}
-                >
-                  Sign in
-                </a>
-              )}
               <div className="mt-2 grid">
                 {nav.map((item) => {
                   const active = item.href === activePath;
                   return (
-                    <a
+                    <button
                       key={item.href}
-                      href={item.href}
+                      type="button"
+                      onClick={() => {
+                        onNavigate(item.href);
+                        setMobileOpen(false);
+                      }}
                       className={[
-                        "rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        "text-left rounded-md px-3 py-2 text-sm font-medium transition-colors",
                         active
                           ? "bg-rose-50 text-rose-700"
                           : "text-slate-700 hover:bg-rose-50 hover:text-rose-700",
                       ].join(" ")}
                     >
                       {item.label}
-                    </a>
+                    </button>
                   );
                 })}
               </div>
+
+              {/* User actions on mobile (optional) */}
+              {user ? (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <div className="px-3 text-xs font-semibold tracking-[0.18em] uppercase text-slate-400">
+                    Account
+                  </div>
+
+                  <div className="mt-2 grid">
+                    {userActions.map((a) => (
+                      <button
+                        key={a.href}
+                        type="button"
+                        onClick={() => {
+                          onNavigate(a.href);
+                          setMobileOpen(false);
+                        }}
+                        className="text-left rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        {a.label}
+                      </button>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        onLogout?.();
+                      }}
+                      className="text-left rounded-md px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </Container>
         </div>

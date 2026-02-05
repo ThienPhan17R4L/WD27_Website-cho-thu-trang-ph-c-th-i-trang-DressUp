@@ -1,9 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from '@/pages/LoginPage';
 import HomePage from '@/pages/HomePage';
+import AdminDashboard from '@/pages/admin/AdminDashboard';
+import AdminLayout from '@/layouts/AdminLayout';
+import AdminProductsPage from '@/pages/admin/ProductsPage';
+import AdminCategoriesPage from '@/pages/admin/CategoriesPage';
+import AdminOrdersPage from '@/pages/admin/OrdersPage';
 import AppShell from '@/layouts/AppShell';
 import PrivateRoute from '@/router/PrivateRoute';
-import PermissionRoute from '@/router/PermissionRoute';
 import RegisterPage from '@/pages/RegisterPage';
 import ProductsPage from '@/pages/ProductsPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
@@ -18,6 +22,14 @@ const AppRouter: React.FC = () => {
         <Route path="/home" element={<HomePage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/products/:slug" element={<ProductDetailPage />} />
+      </Route>
+
+      {/* Admin routes */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="products" element={<AdminProductsPage />} />
+        <Route path="categories" element={<AdminCategoriesPage />} />
+        <Route path="orders" element={<AdminOrdersPage />} />
       </Route>
       {/* Protected routes (requires login) */}
       <Route element={<PrivateRoute />}>

@@ -14,7 +14,7 @@ export const cartRouter = Router();
 cartRouter.use(requireAuth);
 
 cartRouter.get("/", asyncHandler(CartController.get));
-cartRouter.post("/", asyncHandler(CartController.add));
-cartRouter.patch("/", asyncHandler(CartController.update));
-cartRouter.delete("/", asyncHandler(CartController.remove));
+cartRouter.post("/", validateBody(addToCartSchema), asyncHandler(CartController.add));
+cartRouter.patch("/", validateBody(updateCartItemSchema), asyncHandler(CartController.update));
+cartRouter.delete("/", validateBody(removeCartItemSchema), asyncHandler(CartController.remove));
 cartRouter.delete("/clear", asyncHandler(CartController.clear));

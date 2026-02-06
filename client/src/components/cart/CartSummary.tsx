@@ -1,8 +1,6 @@
-const ACCENT = "rgb(213, 176, 160)";
+import { formatVND } from "@/utils/formatCurrency";
 
-function fmt(v: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
-}
+const ACCENT = "rgb(213, 176, 160)";
 
 export function CartSummary({
   totals,
@@ -28,23 +26,23 @@ export function CartSummary({
         <div className="mt-6 space-y-4 text-sm text-slate-700">
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Subtotal</span>
-            <span className="font-semibold">{fmt(subtotal)}</span>
+            <span className="font-semibold">{formatVND(subtotal)}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Discount</span>
-            <span className="font-semibold">-{fmt(discount)}</span>
+            <span className="font-semibold">-{formatVND(discount)}</span>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Shipping</span>
-            <span className="font-semibold">{fmt(shippingFee)}</span>
+            <span className="font-semibold">{formatVND(shippingFee)}</span>
           </div>
 
           <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
             <span className="text-slate-900 font-semibold">Total</span>
             <span className="text-xl font-semibold" style={{ color: ACCENT }}>
-              {fmt(grandTotal)}
+              {formatVND(grandTotal)}
             </span>
           </div>
         </div>

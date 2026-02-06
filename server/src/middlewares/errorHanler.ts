@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
+import { AppError } from "../utils/errors";
 
 export class HttpError extends Error {
   status: number;
@@ -29,7 +30,16 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
     });
   }
 
-  // Custom HttpError
+  // Custom AppError (BadRequestError, UnauthorizedError, etc.)
+  if (err instanceof AppError) {
+    return res.status(err.status).json({
+      code: err.code,
+      message: err.message,
+      details: err.details,
+    });
+  }
+
+  // Custom HttpError (for backward compatibility)
   if (err instanceof HttpError) {
     return res.status(err.status).json({
       message: err.message,

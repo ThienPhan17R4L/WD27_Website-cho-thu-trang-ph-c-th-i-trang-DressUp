@@ -22,11 +22,41 @@ export class ProductRepository {
   }
 
   async findById(id: string) {
-    return ProductModel.findById(id).lean();
+    const result = await ProductModel.aggregate([
+      { $match: { _id: new Types.ObjectId(id) } },
+      {
+        $addFields: {
+          minPrice: {
+            $cond: [
+              { $gt: [{ $size: "$rentalTiers" }, 0] },
+              { $min: "$rentalTiers.price" },
+              null,
+            ],
+          },
+        },
+      },
+    ]);
+
+    return result[0] || null;
   }
 
   async findBySlug(slug: string) {
-    return ProductModel.findOne({ slug: slug.toLowerCase() }).lean();
+    const result = await ProductModel.aggregate([
+      { $match: { slug: slug.toLowerCase() } },
+      {
+        $addFields: {
+          minPrice: {
+            $cond: [
+              { $gt: [{ $size: "$rentalTiers" }, 0] },
+              { $min: "$rentalTiers.price" },
+              null,
+            ],
+          },
+        },
+      },
+    ]);
+
+    return result[0] || null;
   }
 
   async existsBySlug(slug: string, excludeId?: string) {

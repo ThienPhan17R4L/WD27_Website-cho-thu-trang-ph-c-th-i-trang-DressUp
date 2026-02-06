@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import registerRoutes from "./routes";
 import { requireAuth } from "./middlewares/auth.middleware";
+import { errorHandler } from "./middlewares/errorHanler";
 import { env } from "process";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
@@ -21,5 +22,8 @@ app.use(cookieParser());
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 
 registerRoutes(app);
+
+// Error handler MUST be registered after all routes
+app.use(errorHandler);
 
 export default app;

@@ -1,14 +1,16 @@
 import { Link } from "react-router-dom";
 import type { Product } from "@/types/product";
+import { formatVND } from "@/utils/formatCurrency";
 
 const ACCENT = "rgb(213, 176, 160)";
 
-function formatMoney(v: number) {
-  // bạn có thể đổi sang VND nếu muốn
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
-}
+function getFromPrice(p: Product): number | null {
+  // Ưu tiên dùng minPrice từ API (đã tính sẵn)
+  if (p.minPrice !== undefined && p.minPrice !== null) {
+    return p.minPrice;
+  }
 
-function getFromPrice(p: Product) {
+  // Fallback nếu API không trả về minPrice
   if (!p.rentalTiers?.length) return null;
   return Math.min(...p.rentalTiers.map((t) => t.price));
 }
@@ -98,7 +100,7 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="mt-2 text-[12px] tracking-[0.1em] text-slate-400">
           from{" "}
           <span className="text-[22px] font-semibold" style={{ color: ACCENT }}>
-            {from != null ? formatMoney(from) : "—"}
+            {from != null ? formatVND(from) : "—"}
           </span>
         </div>
       </div>

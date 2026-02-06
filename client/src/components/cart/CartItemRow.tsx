@@ -1,12 +1,8 @@
 import { useMemo, useState } from "react";
 import { QuantityStepper } from "@/components/products/QuantityStepper";
+import { formatVND } from "@/utils/formatCurrency";
 
 const ACCENT = "rgb(213, 176, 160)";
-
-function fmt(v: number) {
-  // bạn đổi sang VND nếu cần
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
-}
 
 function toDateInputValue(d: string | Date | undefined) {
   if (!d) return "";
@@ -51,7 +47,7 @@ export function CartItemRow({
 }: {
   item: CartItem;
   onRemove: (itemId: string) => void;
-  onUpdate: (payload: { itemId: string; quantity?: number; rental?: any; variant?: any }) => void;
+  onUpdate: (payload: { itemId: string; quantity?: number; rentalStart?: string; rentalEnd?: string; variant?: any }) => void;
   updating?: boolean;
 }) {
   const [qty, setQty] = useState(item.quantity ?? 1);
@@ -127,8 +123,9 @@ export function CartItemRow({
                   onUpdate({
                     itemId: item._id,
                     quantity: qty,
-                    rental: { startDate: start, endDate: end },
-                    variant: item.variant, // giữ nguyên nếu backend cần
+                    rentalStart: start,
+                    rentalEnd: end,
+                    variant: item.variant,
                   })
                 }
               >
@@ -153,10 +150,10 @@ export function CartItemRow({
               Total
             </div>
             <div className="mt-2 text-lg font-semibold" style={{ color: ACCENT }}>
-              {typeof item.lineTotal === "number" ? fmt(item.lineTotal) : "—"}
+              {typeof item.lineTotal === "number" ? formatVND(item.lineTotal) : "—"}
             </div>
             {typeof item.deposit === "number" ? (
-              <div className="mt-2 text-sm text-slate-500">Deposit: {fmt(item.deposit)}</div>
+              <div className="mt-2 text-sm text-slate-500">Deposit: {formatVND(item.deposit)}</div>
             ) : null}
           </div>
         </div>
@@ -165,7 +162,7 @@ export function CartItemRow({
         <div className="mt-6 flex items-center justify-between md:hidden">
           <div className="text-sm text-slate-500">Item total</div>
           <div className="text-lg font-semibold" style={{ color: ACCENT }}>
-            {typeof item.lineTotal === "number" ? fmt(item.lineTotal) : "—"}
+            {typeof item.lineTotal === "number" ? formatVND(item.lineTotal) : "—"}
           </div>
         </div>
       </div>

@@ -31,6 +31,7 @@ export type Product = {
   status: ProductStatus;
   createdAt: string;
   updatedAt: string;
+  minPrice?: number; // Computed field from backend (min price in rentalTiers)
 };
 
 export type ProductListResponse = {

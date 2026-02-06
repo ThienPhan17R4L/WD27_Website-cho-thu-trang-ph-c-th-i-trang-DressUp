@@ -1,16 +1,18 @@
-import { useMemo } from "react";
 import { Container } from "../common/Container";
 import { Button } from "../common/Button";
 import { ProductCard } from "../common/ProductCard";
-
-import p1 from "@/assets/hero/hero-01.jpg";
-import p2 from "@/assets/hero/hero-02.jpg";
-import p3 from "@/assets/hero/hero-03.jpg";
-import p4 from "@/assets/hero/hero-01.jpg";
-import { Product } from "@/types/product";
+import { useProducts } from "@/hooks/useProducts";
 
 export function ProductGrid() {
-  const products: Product[] = [];
+  // Fetch 8 sản phẩm mới nhất, status active
+  const { data, isLoading, isError } = useProducts({
+    page: 1,
+    limit: 8,
+    sort: "-createdAt",
+    status: "active",
+  });
+
+  const products = data?.items ?? [];
 
   return (
     <section className="bg-white py-14 sm:py-20">
@@ -43,11 +45,25 @@ export function ProductGrid() {
         </div>
 
         {/* Grid */}
-        <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((p) => (
-            <ProductCard key={p._id} product={p} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="mt-14 py-20 text-center text-sm text-slate-500">
+            Loading products...
+          </div>
+        ) : isError ? (
+          <div className="mt-14 py-20 text-center text-sm text-rose-600">
+            Failed to load products
+          </div>
+        ) : products.length === 0 ? (
+          <div className="mt-14 py-20 text-center text-sm text-slate-500">
+            No products available
+          </div>
+        ) : (
+          <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p) => (
+              <ProductCard key={p._id} product={p} />
+            ))}
+          </div>
+        )}
       </Container>
     </section>
   );

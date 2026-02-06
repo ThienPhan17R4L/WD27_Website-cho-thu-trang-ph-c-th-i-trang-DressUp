@@ -7,19 +7,16 @@ import { QuantityStepper } from "@/components/products/QuantityStepper";
 import { ColorSwatches } from "@/components/products/ColorSwatches";
 import { ProductTabs } from "@/components/products/ProductTabs";
 import { useAddToCart } from "@/hooks/useCart";
-import type { Variant } from "@/types/product";
+import type { Variant, RentalTier } from "@/types/product";
+import { formatVND } from "@/utils/formatCurrency";
 
 const ACCENT = "rgb(213, 176, 160)";
-
-function formatMoney(v: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
-}
 
 function getPriceRange(prices: number[]) {
   if (!prices.length) return null;
   const min = Math.min(...prices);
   const max = Math.max(...prices);
-  return min === max ? formatMoney(min) : `${formatMoney(min)} – ${formatMoney(max)}`;
+  return min === max ? formatVND(min) : `${formatVND(min)} – ${formatVND(max)}`;
 }
 
 function unique<T>(arr: T[]) {
@@ -168,8 +165,44 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Rental Tier Suggestions */}
+              {product.rentalTiers && product.rentalTiers.length > 0 && (
+                <div className="mt-7">
+                  <div className="text-[13px] font-medium text-slate-700">Quick Rental Options</div>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {product.rentalTiers.map((tier: RentalTier) => (
+                      <button
+                        key={tier.days}
+                        type="button"
+                        className="h-auto px-5 py-3 text-left ring-1 ring-slate-200 hover:ring-[rgba(213,176,160,0.8)] hover:bg-[rgba(213,176,160,0.05)] transition-all"
+                        onClick={() => {
+                          const today = new Date();
+                          const endDate = new Date(today);
+                          endDate.setDate(today.getDate() + tier.days);
+
+                          const formatDate = (d: Date) => {
+                            const year = d.getFullYear();
+                            const month = String(d.getMonth() + 1).padStart(2, "0");
+                            const day = String(d.getDate()).padStart(2, "0");
+                            return `${year}-${month}-${day}`;
+                          };
+
+                          setStart(formatDate(today));
+                          setEnd(formatDate(endDate));
+                        }}
+                      >
+                        <div className="text-sm font-semibold text-slate-900">{tier.label}</div>
+                        <div className="mt-1 text-xs text-slate-500">{formatVND(tier.price)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Start/End giống ảnh */}
-              <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div className="mt-7">
+                <div className="text-[13px] font-medium text-slate-700 mb-3">Or choose custom dates</div>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <div className="text-[13px] font-medium text-slate-700">Start</div>
                   <input
@@ -191,11 +224,27 @@ export default function ProductDetailPage() {
                   />
                 </div>
               </div>
-
-              {/* price/day giống ảnh */}
-              <div className="mt-7 text-[28px] font-semibold" style={{ color: ACCENT }}>
-                {typeof pricePerDay === "number" ? `${formatMoney(pricePerDay)} / day` : "— / day"}
               </div>
+
+              {/* Rental Price Info */}
+              {product.rentalTiers && product.rentalTiers.length > 0 && (
+                <div className="mt-7 p-5 bg-[#f6f3ef] ring-1 ring-slate-100">
+                  <div className="text-sm text-slate-600">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium">Rental from</span>
+                      <span className="text-[24px] font-semibold" style={{ color: ACCENT }}>
+                        {formatVND(product.minPrice || Math.min(...product.rentalTiers.map((t: RentalTier) => t.price)))}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs">
+                      <span className="text-slate-500">Security Deposit</span>
+                      <span className="font-semibold text-slate-700">
+                        {formatVND(product.depositDefault || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Qty + Buy */}
               <div className="mt-6 flex items-center gap-4">
@@ -215,10 +264,13 @@ export default function ProductDetailPage() {
 
                     addToCart.mutate({
                       productId: product._id,
-                      variantId: (pickedVariant as any)._id,
-                      qty,
                       rentalStart: toISODate(start),
                       rentalEnd: toISODate(end),
+                      variant: {
+                        size: (pickedVariant as any).size,
+                        color: (pickedVariant as any).color,
+                      },
+                      quantity: qty,
                     });
                   }}
                 >

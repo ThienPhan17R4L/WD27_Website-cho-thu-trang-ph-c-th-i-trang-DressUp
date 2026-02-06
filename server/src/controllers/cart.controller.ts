@@ -16,15 +16,20 @@ export const CartController = {
 
   async update(req: Request, res: Response) {
     const userId = (req as any).user!.id;
-    const { productId, quantity } = req.body;
-    const cart = await CartService.updateQuantity(userId, productId, quantity);
+    const { itemId, quantity, rentalStart, rentalEnd, variant } = req.body;
+    const cart = await CartService.updateItem(userId, itemId, {
+      quantity,
+      rentalStart,
+      rentalEnd,
+      variant,
+    });
     res.json(cart);
   },
 
   async remove(req: Request, res: Response) {
     const userId = (req as any).user!.id;
-    const { productId } = req.body;
-    const cart = await CartService.removeItem(userId, productId);
+    const { itemId } = req.body;
+    const cart = await CartService.removeItem(userId, itemId);
     res.json(cart);
   },
 

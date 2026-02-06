@@ -4,20 +4,29 @@ export type Cart = any;
 
 export type AddToCartPayload = {
   productId: string;
-  variantId: string;
-  qty: number;
   rentalStart: string; // YYYY-MM-DD
-  rentalEnd: string;
+  rentalEnd: string;   // YYYY-MM-DD
+  variant?: {
+    size: string;
+    color?: string;
+  };
+  quantity: number;
 };
 
 export type UpdateCartItemPayload = {
   itemId: string;
-  qty?: number;
+  quantity?: number;
   rentalStart?: string;
   rentalEnd?: string;
+  variant?: {
+    size: string;
+    color?: string;
+  };
 };
 
-export type RemoveCartItemPayload = { itemId: string };
+export type RemoveCartItemPayload = {
+  itemId: string;
+};
 
 export const cartApi = {
   get: () => apiGet<Cart>("/cart"),

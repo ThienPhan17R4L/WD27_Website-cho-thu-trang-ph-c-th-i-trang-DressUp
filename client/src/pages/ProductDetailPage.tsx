@@ -3,6 +3,10 @@ import { useParams } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { useProduct } from "@/hooks/useProduct";
 import { ProductGallery } from "@/components/products/ProductGallery";
+import { QuantityStepper } from "@/components/products/QuantityStepper";
+import { ColorSwatches } from "@/components/products/ColorSwatches";
+import { ProductTabs } from "@/components/products/ProductTabs";
+import { useAddToCart } from "@/hooks/useCart";
 import type { Variant } from "@/types/product";
 
 const ACCENT = "rgb(213, 176, 160)";
@@ -22,41 +26,66 @@ function unique<T>(arr: T[]) {
   return Array.from(new Set(arr));
 }
 
+function toISODate(d: string) {
+  // accept YYYY-MM-DD; keep as-is (backend của bạn parse được)
+  return d;
+}
+
 export default function ProductDetailPage() {
   const { slug = "" } = useParams();
   const { data: product, isLoading, isError } = useProduct(slug);
 
+  const addToCart = useAddToCart();
+
   const [size, setSize] = useState<string>("");
   const [color, setColor] = useState<string>("");
 
+  const [start, setStart] = useState<string>(""); // YYYY-MM-DD
+  const [end, setEnd] = useState<string>("");
+
+  const [qty, setQty] = useState<number>(1);
+
   const sizes = useMemo(() => {
     if (!product?.variants?.length) return [];
-    return unique(product.variants.map((v) => v.size)).filter(Boolean);
+    return unique(product.variants.map((v: any) => v.size)).filter(Boolean);
   }, [product?.variants]);
 
   const colors = useMemo(() => {
     if (!product?.variants?.length) return [];
-    return unique(product.variants.map((v) => v.color).filter(Boolean) as string[]);
+    return unique(product.variants.map((v: any) => v.color).filter(Boolean) as string[]);
   }, [product?.variants]);
 
   const priceRange = useMemo(() => {
+    // bạn đang có rentalTiers, giữ nguyên
     if (!product?.rentalTiers?.length) return null;
-    return getPriceRange(product.rentalTiers.map((t) => t.price));
+    return getPriceRange(product.rentalTiers.map((t: any) => t.price));
   }, [product?.rentalTiers]);
 
   const pickedVariant = useMemo(() => {
     if (!product?.variants?.length) return null;
-    return product.variants.find((v: Variant) => {
-      const okSize = size ? v.size === size : true;
-      const okColor = color ? v.color === color : true;
-      return okSize && okColor;
-    }) ?? null;
+    return (
+      product.variants.find((v: Variant) => {
+        const okSize = size ? v.size === size : true;
+        const okColor = color ? v.color === color : true;
+        return okSize && okColor;
+      }) ?? null
+    );
   }, [product?.variants, size, color]);
+
+  // Nếu bạn có field pricePerDay theo variant/tier, render "xxx / day" giống ảnh
+  const pricePerDay = useMemo(() => {
+    // ưu tiên variant nếu có
+    const v: any = pickedVariant as any;
+    if (v?.pricePerDay) return v.pricePerDay;
+    // fallback lấy tier 1 ngày (nếu bạn có)
+    const t = product?.rentalTiers?.find?.((x: any) => x.days === 1);
+    return t?.price ?? null;
+  }, [pickedVariant, product?.rentalTiers]);
 
   if (isLoading) {
     return (
       <Container>
-        <div className="py-10 text-sm text-slate-500">Loading...</div>
+        <div className="pt-24 pb-10 md:pt-28 lg:pt-32 text-sm text-slate-500">Loading...</div>
       </Container>
     );
   }
@@ -64,7 +93,7 @@ export default function ProductDetailPage() {
   if (isError || !product) {
     return (
       <Container>
-        <div className="py-10 text-sm text-rose-700">Load failed</div>
+        <div className="pt-24 pb-10 md:pt-28 lg:pt-32 text-sm text-rose-700">Load failed</div>
       </Container>
     );
   }
@@ -72,13 +101,13 @@ export default function ProductDetailPage() {
   return (
     <div className="bg-white">
       <Container>
-        <div className="py-10">
+        <div className="pt-24 pb-10 md:pt-28 lg:pt-32">
           <div className="grid gap-12 lg:grid-cols-[1fr_1fr]">
             {/* Left: gallery */}
             <ProductGallery images={product.images} />
 
             {/* Right: details */}
-            <div>
+            <div className="max-w-[520px]">
               <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
                 {product.name}
               </div>
@@ -87,10 +116,30 @@ export default function ProductDetailPage() {
                 {priceRange ?? "—"}
               </div>
 
-              <p className="mt-6 max-w-prose text-[14px] leading-7 text-slate-600">
-                {product.notes ??
-                  "Lorem ipsum dolor sit amet, consectetur adipiscing elit. (Bạn có thể map field notes/care từ API vào đây)."}
-              </p>
+              <div className="mt-6 space-y-5 text-[14px] leading-7 text-slate-600">
+                <p>
+                  {product.notes ??
+                    "Lorem ipsum dolor sit amet, populo doming ne duo, pro in soleat persius corpora..."}
+                </p>
+
+                {/* block thông số như ảnh */}
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-semibold text-slate-800">BUST:</span>{" "}
+                    Great for any cup size – comfortable room at bust
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-800">WAIST:</span>{" "}
+                    Very Fitted – dress very fitted at natural waist
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-800">HIPS:</span> Fitted – stretchy fabric at hips
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-800">LENGTH:</span> Knee length – (on a 5'6" model)
+                  </div>
+                </div>
+              </div>
 
               {/* Size */}
               <div className="mt-8">
@@ -99,7 +148,7 @@ export default function ProductDetailPage() {
                   <select
                     value={size}
                     onChange={(e) => setSize(e.target.value)}
-                    className="w-full bg-[#f6f3ef] px-5 py-4 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
+                    className="h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
                   >
                     <option value="">Choose an option</option>
                     {sizes.map((s) => (
@@ -114,77 +163,87 @@ export default function ProductDetailPage() {
               {/* Color */}
               <div className="mt-6">
                 <div className="text-[13px] font-medium text-slate-700">Color</div>
-                <div className="mt-3 flex gap-3">
-                  {colors.length ? (
-                    colors.map((c) => {
-                      const active = c === color;
-                      return (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setColor(c)}
-                          className={[
-                            "h-10 w-10",
-                            "ring-2",
-                            active ? "ring-[rgba(213,176,160,0.95)]" : "ring-slate-200",
-                          ].join(" ")}
-                          title={c}
-                          style={{
-                            backgroundColor: c.toLowerCase(), // nếu c là "Black/White/Pink"
-                          }}
-                        />
-                      );
-                    })
-                  ) : (
-                    <div className="text-sm text-slate-500">No colors</div>
-                  )}
+                <div className="mt-3">
+                  <ColorSwatches colors={colors} value={color} onChange={setColor} />
                 </div>
               </div>
 
-              {/* Rent controls */}
-              <div className="mt-8 flex items-center gap-4">
-                <div className="w-28 bg-[#f6f3ef] ring-1 ring-slate-200">
+              {/* Start/End giống ảnh */}
+              <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div>
+                  <div className="text-[13px] font-medium text-slate-700">Start</div>
                   <input
-                    type="number"
-                    min={1}
-                    defaultValue={1}
-                    className="h-12 w-full bg-transparent px-4 text-sm outline-none"
+                    value={start}
+                    onChange={(e) => setStart(e.target.value)}
+                    placeholder="Start"
+                    type="date"
+                    className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
                   />
                 </div>
+                <div>
+                  <div className="text-[13px] font-medium text-slate-700">End</div>
+                  <input
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                    placeholder="End"
+                    type="date"
+                    className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
+                  />
+                </div>
+              </div>
+
+              {/* price/day giống ảnh */}
+              <div className="mt-7 text-[28px] font-semibold" style={{ color: ACCENT }}>
+                {typeof pricePerDay === "number" ? `${formatMoney(pricePerDay)} / day` : "— / day"}
+              </div>
+
+              {/* Qty + Buy */}
+              <div className="mt-6 flex items-center gap-4">
+                <QuantityStepper value={qty} onChange={setQty} />
 
                 <button
                   type="button"
-                  className="h-12 px-10 text-[12px] font-semibold tracking-[0.22em] uppercase text-white"
-                  style={{ backgroundColor: ACCENT }}
+                  className={[
+                    "h-12 px-10 text-[12px] font-semibold tracking-[0.22em] uppercase",
+                    "ring-1 ring-[rgba(213,176,160,0.45)]",
+                    "disabled:cursor-not-allowed disabled:opacity-60",
+                  ].join(" ")}
+                  style={{ backgroundColor: "rgba(213,176,160,0.28)", color: "rgba(15,23,42,0.55)" }}
+                  disabled={!pickedVariant || !start || !end || addToCart.isPending}
                   onClick={() => {
-                    // demo: khách chỉ xem, bạn có thể sau này hook sang order/cart
-                    console.log("rent", {
+                    if (!pickedVariant) return;
+
+                    addToCart.mutate({
                       productId: product._id,
-                      slug: product.slug,
-                      size,
-                      color,
-                      pickedVariant,
+                      variantId: (pickedVariant as any)._id,
+                      qty,
+                      rentalStart: toISODate(start),
+                      rentalEnd: toISODate(end),
                     });
                   }}
                 >
-                  Buy now
+                  {addToCart.isPending ? "ADDING..." : "BUY NOW"}
                 </button>
               </div>
 
+              {/* wishlist giống ảnh */}
+              <div className="mt-6 flex items-center gap-2 text-[13px]" style={{ color: "rgba(213,176,160,0.95)" }}>
+                <span aria-hidden="true">♡</span>
+                <button type="button" className="hover:underline">
+                  Add to Wishlist
+                </button>
+              </div>
+
+              {/* helper */}
               <div className="mt-6 text-sm text-slate-500">
                 {pickedVariant ? (
                   <span>
-                    Selected: <span className="font-semibold text-slate-800">{pickedVariant.size}</span>
-                    {pickedVariant.color ? (
+                    Selected:{" "}
+                    <span className="font-semibold text-slate-800">{(pickedVariant as any).size}</span>
+                    {(pickedVariant as any).color ? (
                       <>
                         {" "}
-                        / <span className="font-semibold text-slate-800">{pickedVariant.color}</span>
-                      </>
-                    ) : null}
-                    {pickedVariant.skuHint ? (
-                      <>
-                        {" "}
-                        · <span className="font-semibold text-slate-800">{pickedVariant.skuHint}</span>
+                        / <span className="font-semibold text-slate-800">{(pickedVariant as any).color}</span>
                       </>
                     ) : null}
                   </span>
@@ -192,20 +251,13 @@ export default function ProductDetailPage() {
                   <span>Pick size/color to match a variant.</span>
                 )}
               </div>
-
-              {/* Care */}
-              {product.care ? (
-                <div className="mt-10">
-                  <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
-                    Care
-                  </div>
-                  <p className="mt-3 whitespace-pre-line text-[14px] leading-7 text-slate-600">
-                    {product.care}
-                  </p>
-                </div>
-              ) : null}
             </div>
           </div>
+
+          {/* Tabs section giống ảnh */}
+          <ProductTabs
+            description={product.description ?? product.notes}
+          />
         </div>
       </Container>
     </div>

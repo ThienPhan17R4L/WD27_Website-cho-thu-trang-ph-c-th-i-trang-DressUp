@@ -9,7 +9,8 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token.replace(/^"+|"+$/g, "")}`;
+    console.log(config.headers)
   }
   return config;
 });
@@ -20,8 +21,8 @@ axiosInstance.interceptors.response.use(
   error => {
     if (error.response && error.response.status === 401) {
       // Nếu Unauthorized -> xóa thông tin user, token và có thể điều hướng đến /login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // localStorage.removeItem('token');
+      // localStorage.removeItem('user');
       // TODO: Optionally, phát ra thông báo lỗi hoặc redirect về /login
     }
     return Promise.reject(error);

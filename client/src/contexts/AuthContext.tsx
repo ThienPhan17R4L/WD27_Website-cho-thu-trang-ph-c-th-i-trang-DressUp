@@ -14,7 +14,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const savedToken = localStorage.getItem('token');
     if (savedUser && savedToken) {
       setUser(JSON.parse(savedUser));
-      setToken(JSON.parse(savedToken));
+      setToken(savedToken);
     }
   }, []);
 

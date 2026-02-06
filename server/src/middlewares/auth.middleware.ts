@@ -14,6 +14,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   try {
     const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;
+    console.log(decoded);
     (req as any).user = { id: decoded.sub, roles: decoded.roles ?? [] };
     return next();
   } catch {

@@ -20,6 +20,7 @@ export type Product = {
   brand?: string;
   material?: string;
   colorFamily?: string;
+  description?: string;
   images: string[];
   rentalTiers: RentalTier[];
   depositDefault: number;

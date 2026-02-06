@@ -63,11 +63,11 @@ function NavLink({
     >
       {children}
       {active && (
-        <span className="pointer-events-none absolute left-1/2 top-full -translate-x-1/2">
-          <span className="relative block h-6 w-44 bg-white shadow-[0_-1px_0_0_rgba(226,232,240,1)]" />
-          <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
+        <span className="pointer-events-none w-full absolute left-1/2 top-full -translate-x-1/2">
+          <hr className="relative w-full bg-white shadow-[0_-1px_0_0_rgba(226,232,240,1)]" />
+          {/* <span className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2">
             <span className="block h-3 w-3 rotate-45 bg-white shadow-[-1px_-1px_0_0_rgba(226,232,240,1)]" />
-          </span>
+          </span> */}
         </span>
       )}
     </button>
@@ -177,7 +177,7 @@ export function Header({
   );
 
   return (
-    <header className="relative z-50 w-full bg-white">
+    <header className="fixed top-0 z-50 w-full bg-white">
       <div className="w-full border-b border-slate-200">
         <Container>
           <div className="flex h-20 items-center justify-between gap-6">

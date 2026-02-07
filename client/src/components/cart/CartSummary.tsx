@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { formatVND } from "@/utils/formatCurrency";
 
 const ACCENT = "rgb(213, 176, 160)";
@@ -11,6 +12,7 @@ export function CartSummary({
   onClear: () => void;
   clearing?: boolean;
 }) {
+  const navigate = useNavigate();
   const subtotal = totals?.subtotal ?? 0;
   const discount = totals?.discount ?? 0;
   const shippingFee = totals?.shippingFee ?? 0;
@@ -51,10 +53,7 @@ export function CartSummary({
           type="button"
           className="mt-7 h-12 w-full text-[12px] font-semibold tracking-[0.22em] uppercase text-white disabled:opacity-60"
           style={{ backgroundColor: ACCENT }}
-          onClick={() => {
-            // bạn đổi sang navigate("/checkout") khi làm checkout
-            alert("TODO: navigate to checkout");
-          }}
+          onClick={() => navigate("/checkout")}
         >
           Proceed to checkout
         </button>

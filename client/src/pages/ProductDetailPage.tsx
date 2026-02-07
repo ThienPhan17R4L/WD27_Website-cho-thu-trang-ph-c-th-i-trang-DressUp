@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { useProduct } from "@/hooks/useProduct";
@@ -9,6 +9,8 @@ import { ProductTabs } from "@/components/products/ProductTabs";
 import { useAddToCart } from "@/hooks/useCart";
 import type { Variant, RentalTier } from "@/types/product";
 import { formatVND } from "@/utils/formatCurrency";
+import { validateRentalDates } from "@/utils/dateValidation";
+import { useNotification } from "@/contexts/NotificationContext";
 
 const ACCENT = "rgb(213, 176, 160)";
 
@@ -33,14 +35,26 @@ export default function ProductDetailPage() {
   const { data: product, isLoading, isError } = useProduct(slug);
 
   const addToCart = useAddToCart();
+  const { showNotification } = useNotification();
 
   const [size, setSize] = useState<string>("");
   const [color, setColor] = useState<string>("");
 
   const [start, setStart] = useState<string>(""); // YYYY-MM-DD
   const [end, setEnd] = useState<string>("");
+  const [dateError, setDateError] = useState<string>("");
 
   const [qty, setQty] = useState<number>(1);
+
+  // Real-time date validation
+  useEffect(() => {
+    if (start && end) {
+      const validation = validateRentalDates(start, end);
+      setDateError(validation.error || "");
+    } else {
+      setDateError("");
+    }
+  }, [start, end]);
 
   const sizes = useMemo(() => {
     if (!product?.variants?.length) return [];
@@ -224,6 +238,11 @@ export default function ProductDetailPage() {
                   />
                 </div>
               </div>
+              {dateError && (
+                <div className="mt-2 text-xs text-red-600">
+                  {dateError}
+                </div>
+              )}
               </div>
 
               {/* Rental Price Info */}
@@ -261,6 +280,13 @@ export default function ProductDetailPage() {
                   disabled={!pickedVariant || !start || !end || addToCart.isPending}
                   onClick={() => {
                     if (!pickedVariant) return;
+
+                    // Validate dates before adding to cart
+                    const validation = validateRentalDates(start, end);
+                    if (!validation.isValid) {
+                      showNotification("error", validation.error!);
+                      return;
+                    }
 
                     addToCart.mutate({
                       productId: product._id,

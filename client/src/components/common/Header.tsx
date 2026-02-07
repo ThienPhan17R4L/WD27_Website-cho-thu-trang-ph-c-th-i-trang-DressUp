@@ -170,7 +170,7 @@ export function Header({
     () => [
       { label: "My account", href: "/account" },
       { label: "My rentals", href: "/account/rentals" },
-      { label: "Orders", href: "/account/orders" },
+      { label: "My Orders", href: "/orders" },
       { label: "Addresses", href: "/account/addresses" },
     ],
     []

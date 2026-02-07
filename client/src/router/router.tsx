@@ -12,6 +12,8 @@ import RegisterPage from '@/pages/RegisterPage';
 import ProductsPage from '@/pages/ProductsPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
 import CartPage from '@/pages/CartPage';
+import CheckoutPage from '@/pages/CheckoutPage';
+import OrdersPage from '@/pages/OrdersPage';
 
 const AppRouter: React.FC = () => {
   return (
@@ -37,11 +39,13 @@ const AppRouter: React.FC = () => {
       <Route element={<PrivateRoute />}>
         {/* AppShell layout wrapper for authenticated pages */}
         <Route element={<AppShell />}>
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
           {/* Ví dụ route chỉ dành cho admin (nếu có trang AdminPage) */}
-          {/* 
+          {/*
           <Route element={<PermissionRoute requiredPermission="ADMIN" />}>
             <Route path="/admin" element={<AdminPage />} />
-          </Route> 
+          </Route>
           */}
         </Route>
       </Route>

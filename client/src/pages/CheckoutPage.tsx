@@ -33,22 +33,55 @@ export default function CheckoutPage() {
     grandTotal: 0,
   };
 
+  // Calculate total deposit from cart items
+  const totalDeposit = cart?.items?.reduce(
+    (sum: number, item: any) =>
+      sum + (item.deposit || 0) * (item.quantity || 1),
+    0
+  ) || 0;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Client-side validation
+    if (
+      !form.receiverName ||
+      !form.receiverPhone ||
+      !form.line1 ||
+      !form.ward ||
+      !form.district ||
+      !form.province
+    ) {
+      showNotification("error", "Vui lòng điền đầy đủ thông tin giao hàng");
+      return;
+    }
+
+    // Validate phone format (Vietnam phone numbers)
+    const phoneRegex = /^(0|\+84)[0-9]{9}$/;
+    if (!phoneRegex.test(form.receiverPhone.trim())) {
+      showNotification("error", "Số điện thoại không hợp lệ (VD: 0912345678)");
+      return;
+    }
+
+    // Validate payment method
+    if (!form.paymentMethod) {
+      showNotification("error", "Vui lòng chọn phương thức thanh toán");
+      return;
+    }
 
     try {
       const order = await createOrder.mutateAsync({
         shippingAddress: {
-          receiverName: form.receiverName,
-          receiverPhone: form.receiverPhone,
-          line1: form.line1,
-          ward: form.ward,
-          district: form.district,
-          province: form.province,
+          receiverName: form.receiverName.trim(),
+          receiverPhone: form.receiverPhone.trim(),
+          line1: form.line1.trim(),
+          ward: form.ward.trim(),
+          district: form.district.trim(),
+          province: form.province.trim(),
           country: "VN",
         },
         paymentMethod: form.paymentMethod,
-        notes: form.notes,
+        notes: form.notes.trim(),
       });
 
       // Handle MoMo payment
@@ -290,6 +323,17 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
+                  {totalDeposit > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-orange-600 font-medium">
+                        Deposit (Refundable)
+                      </span>
+                      <span className="text-orange-600 font-medium">
+                        {formatVND(totalDeposit)}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="pt-4 border-t border-slate-300 flex items-center justify-between">
                     <span className="text-slate-900 font-semibold">Total</span>
                     <span
@@ -299,6 +343,11 @@ export default function CheckoutPage() {
                       {formatVND(totals.grandTotal)}
                     </span>
                   </div>
+                </div>
+
+                {/* Late fee warning */}
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                  ℹ️ <strong>Late return fee:</strong> 1.5x daily rate per day overdue
                 </div>
 
                 <button

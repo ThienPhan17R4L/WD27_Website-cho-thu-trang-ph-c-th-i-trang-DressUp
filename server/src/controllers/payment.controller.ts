@@ -60,7 +60,7 @@ export const PaymentController = {
       console.log("[Payment] MoMo callback received:", data);
 
       // Verify signature
-      const isValid = MoMoService.verifySignature(data, data.signature);
+      const isValid = MoMoService.verifySignature(data);
       if (!isValid) {
         console.error("[Payment] Invalid MoMo signature");
         return res.status(400).json({ message: "Invalid signature" });
@@ -101,9 +101,9 @@ export const PaymentController = {
 
   /**
    * GET /payment/momo/test/:orderId
-   * Test endpoint to simulate successful MoMo payment (DEV ONLY)
+   * Test endpoint to check transaction status (DEV ONLY)
    */
-  async testMoMoSuccess(req: Request, res: Response) {
+  async checkMoMoStatus(req: Request, res: Response) {
     try {
       const { orderId } = req.params;
 
@@ -118,37 +118,22 @@ export const PaymentController = {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      // Simulate successful callback
-      const mockCallback = MoMoService.mockSuccessCallback(orderId);
-      mockCallback.amount = order.total;
+      // Get requestId from payment details or generate one
+      const requestId = order.paymentDetails?.requestId || `${orderId}_${Date.now()}`;
 
-      // Process callback
-      const result = await MoMoService.handleCallback(mockCallback);
-
-      if (result.success) {
-        // Update order payment status
-        await OrderModel.updateOne(
-          { orderNumber: orderId },
-          {
-            paymentStatus: "paid",
-            paymentDetails: {
-              transId: result.transId,
-              paidAt: new Date(),
-              testMode: true,
-            },
-          }
-        );
-      }
+      // Check transaction status via MoMo API
+      const status = await MoMoService.checkTransactionStatus(orderId, requestId);
 
       res.json({
-        message: "Test payment successful",
+        message: "Transaction status retrieved",
+        status,
         order: {
           orderNumber: order.orderNumber,
-          paymentStatus: "paid",
+          paymentStatus: order.paymentStatus,
         },
       });
     } catch (error: any) {
-      console.error("[Payment] Test error:", error);
+      console.error("[Payment] Status check error:", error);
       res.status(500).json({ message: error.message });
     }
   },

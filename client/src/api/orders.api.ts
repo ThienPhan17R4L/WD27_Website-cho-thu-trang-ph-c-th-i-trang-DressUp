@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from "@/lib/api";
+import { apiGet, apiPost, apiPatch } from "@/lib/api";
 
 export type Order = {
   _id: string;
@@ -34,12 +34,33 @@ export type CreateOrderPayload = {
   notes?: string;
 };
 
+export type OrdersListResponse = {
+  items: Order[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export const ordersApi = {
+  // User orders
   create: (payload: CreateOrderPayload) => apiPost<Order>("/orders", payload),
   getAll: (params?: { status?: string; page?: number; limit?: number }) =>
-    apiGet<{ items: Order[]; page: number; limit: number; total: number; totalPages: number }>(
-      "/orders",
-      params
-    ),
+    apiGet<OrdersListResponse>("/orders", params),
   getById: (id: string) => apiGet<Order>(`/orders/${id}`),
+  deliverOrder: (id: string) => apiPatch<Order>(`/orders/${id}/deliver`, {}),
+  getActiveRentals: () => apiGet<OrdersListResponse>("/orders/active-rentals"),
+
+  // Admin orders (same endpoints but may need admin permissions)
+  admin: {
+    getAll: (params?: { status?: string; page?: number; limit?: number; search?: string }) =>
+      apiGet<OrdersListResponse>("/orders", params),
+    getById: (id: string) => apiGet<Order>(`/orders/${id}`),
+    updateStatus: (id: string, status: string) =>
+      apiPatch<Order>(`/orders/${id}/status`, { status }),
+    confirmOrder: (id: string) => apiPatch<Order>(`/orders/${id}/confirm`, {}),
+    shipOrder: (id: string) => apiPatch<Order>(`/orders/${id}/ship`, {}),
+    completeOrder: (id: string, actualReturnDate?: string) =>
+      apiPatch<Order>(`/orders/${id}/complete`, { actualReturnDate }),
+  },
 };

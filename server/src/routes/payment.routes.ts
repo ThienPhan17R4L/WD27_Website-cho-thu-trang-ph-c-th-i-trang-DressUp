@@ -17,5 +17,5 @@ paymentRouter.post("/momo/callback", asyncHandler(PaymentController.momoCallback
 
 // Test endpoint (DEV ONLY)
 if (process.env.NODE_ENV !== "production") {
-  paymentRouter.get("/momo/test/:orderId", asyncHandler(PaymentController.testMoMoSuccess));
+  paymentRouter.get("/momo/status/:orderId", asyncHandler(PaymentController.checkMoMoStatus));
 }

@@ -57,7 +57,13 @@ export const OrderService = {
     const shippingFee = cart.totals?.shippingFee || 0;
     const total = cart.totals?.grandTotal || 0;
 
-    // 3.5. Calculate pickup deadline for COD orders (2 hours from now)
+    // 3.5. Calculate total deposit
+    const totalDeposit = cart.items!.reduce(
+      (sum, item) => sum + (item.deposit || 0) * item.quantity,
+      0
+    );
+
+    // 3.6. Calculate pickup deadline for COD orders (2 hours from now)
     let pickupDeadline: Date | undefined;
     if (payload.paymentMethod === "cod") {
       pickupDeadline = new Date();
@@ -88,10 +94,13 @@ export const OrderService = {
       subtotal,
       discount,
       shippingFee,
+      totalDeposit,
       total,
       paymentMethod: payload.paymentMethod,
       paymentStatus: payload.paymentMethod === "cod" ? "pending" : "pending",
       status: "pending",
+      lateFee: 0,
+      depositRefunded: 0,
     };
 
     if (payload.notes) {
@@ -181,5 +190,100 @@ export const OrderService = {
 
     if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
     return order;
+  },
+
+  /**
+   * Status transitions for order flow
+   */
+
+  // Admin confirms order (pending → confirmed)
+  async confirmOrder(orderId: string) {
+    const order = await OrderModel.findByIdAndUpdate(
+      orderId,
+      {
+        status: "confirmed",
+        confirmedAt: new Date(),
+      },
+      { new: true }
+    );
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+    return order;
+  },
+
+  // Admin ships order (confirmed → shipping)
+  async shipOrder(orderId: string) {
+    const order = await OrderModel.findByIdAndUpdate(
+      orderId,
+      {
+        status: "shipping",
+        shippedAt: new Date(),
+      },
+      { new: true }
+    );
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+    return order;
+  },
+
+  // Customer receives order (shipping → delivered)
+  async deliverOrder(orderId: string) {
+    const order = await OrderModel.findByIdAndUpdate(
+      orderId,
+      {
+        status: "delivered",
+        deliveredAt: new Date(),
+      },
+      { new: true }
+    );
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+    return order;
+  },
+
+  // Customer returns items and completes rental (delivered/renting → completed)
+  async completeOrder(orderId: string, actualReturnDate?: Date) {
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+
+    const returnDate = actualReturnDate || new Date();
+    let lateFee = 0;
+
+    // Calculate late fee if returned after rental end date
+    for (const item of order.items) {
+      const expectedReturnDate = new Date(item.rental.endDate);
+      if (returnDate > expectedReturnDate) {
+        const daysLate = Math.ceil(
+          (returnDate.getTime() - expectedReturnDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        // Late fee = pricePerDay * days late * quantity * 1.5 (penalty multiplier)
+        lateFee += item.rental.pricePerDay * daysLate * item.quantity * 1.5;
+      }
+    }
+
+    order.status = "completed";
+    order.actualReturnDate = returnDate;
+    order.lateFee = lateFee;
+    await order.save();
+
+    return order;
+  },
+
+  // Calculate expected late fee for an order (preview)
+  async calculateLateFee(orderId: string): Promise<number> {
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+
+    const now = new Date();
+    let lateFee = 0;
+
+    for (const item of order.items) {
+      const expectedReturnDate = new Date(item.rental.endDate);
+      if (now > expectedReturnDate) {
+        const daysLate = Math.ceil(
+          (now.getTime() - expectedReturnDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        lateFee += item.rental.pricePerDay * daysLate * item.quantity * 1.5;
+      }
+    }
+
+    return lateFee;
   },
 };

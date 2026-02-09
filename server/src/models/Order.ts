@@ -1,6 +1,14 @@
 import { Schema, model, Types } from "mongoose";
 
-export type OrderStatus = "pending" | "confirmed" | "delivered" | "completed" | "cancelled";
+export type OrderStatus =
+  | "pending"        // Chờ xác nhận (mới tạo)
+  | "confirmed"      // Đã xác nhận (admin xác nhận)
+  | "shipping"       // Đang vận chuyển (admin gửi hàng)
+  | "delivered"      // Đã giao hàng (khách nhận hàng)
+  | "renting"        // Đang thuê (trong thời gian thuê)
+  | "completed"      // Hoàn thành (đã trả đồ)
+  | "cancelled";     // Đã hủy
+
 export type PaymentMethod = "cod" | "vnpay" | "momo" | "zalopay";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
@@ -43,7 +51,8 @@ export interface OrderDoc {
   subtotal: number;
   discount: number;
   shippingFee: number;
-  total: number;
+  totalDeposit: number; // Tổng tiền đặt cọc
+  total: number; // Tổng tiền thuê (chưa bao gồm cọc)
 
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
@@ -53,7 +62,14 @@ export interface OrderDoc {
 
   notes?: string;
 
+  // Rental tracking
   pickupDeadline?: Date; // For COD orders: 2 hours from order creation
+  confirmedAt?: Date; // Thời gian admin xác nhận
+  shippedAt?: Date; // Thời gian gửi hàng
+  deliveredAt?: Date; // Thời gian khách nhận hàng
+  actualReturnDate?: Date; // Thời gian khách trả đồ thực tế
+  lateFee: number; // Phí phạt trả muộn
+  depositRefunded: number; // Số tiền cọc đã hoàn
 
   createdAt: Date;
   updatedAt: Date;
@@ -104,6 +120,7 @@ const OrderSchema = new Schema<OrderDoc>(
     subtotal: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
     shippingFee: { type: Number, default: 0, min: 0 },
+    totalDeposit: { type: Number, required: true, min: 0 },
     total: { type: Number, required: true, min: 0 },
     paymentMethod: {
       type: String,
@@ -119,12 +136,19 @@ const OrderSchema = new Schema<OrderDoc>(
     paymentDetails: { type: Schema.Types.Mixed },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "delivered", "completed", "cancelled"],
+      enum: ["pending", "confirmed", "shipping", "delivered", "renting", "completed", "cancelled"],
       default: "pending",
       index: true,
     },
     notes: { type: String },
-    pickupDeadline: { type: Date }, // For COD: 2 hours from creation
+    // Rental tracking
+    pickupDeadline: { type: Date },
+    confirmedAt: { type: Date },
+    shippedAt: { type: Date },
+    deliveredAt: { type: Date },
+    actualReturnDate: { type: Date },
+    lateFee: { type: Number, default: 0, min: 0 },
+    depositRefunded: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

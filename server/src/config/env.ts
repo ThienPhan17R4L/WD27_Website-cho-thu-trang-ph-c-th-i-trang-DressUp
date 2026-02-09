@@ -44,5 +44,13 @@ export const env = {
   SMTP_PORT: num("SMTP_PORT", 587),
   SMTP_USER: optional("SMTP_USER", ""),
   SMTP_PASS: optional("SMTP_PASS", ""),
-  SMTP_FROM: optional("SMTP_FROM", "No Reply <no-reply@example.com>")
+  SMTP_FROM: optional("SMTP_FROM", "No Reply <no-reply@example.com>"),
+
+  // MoMo Payment Gateway
+  MOMO_PARTNER_CODE: optional("MOMO_PARTNER_CODE", ""),
+  MOMO_ACCESS_KEY: optional("MOMO_ACCESS_KEY", ""),
+  MOMO_SECRET_KEY: optional("MOMO_SECRET_KEY", ""),
+  MOMO_ENDPOINT: optional("MOMO_ENDPOINT", "https://test-payment.momo.vn/v2/gateway/api/create"),
+  MOMO_RETURN_URL: optional("MOMO_RETURN_URL", "http://localhost:5173/orders"),
+  MOMO_NOTIFY_URL: optional("MOMO_NOTIFY_URL", "http://localhost:3030/api/payment/momo/callback")
 };

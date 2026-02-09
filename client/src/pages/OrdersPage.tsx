@@ -1,32 +1,44 @@
 import { Container } from "@/components/common/Container";
 import { useOrders } from "@/hooks/useOrders";
 import { formatVND } from "@/utils/formatCurrency";
-import type { Order } from "@/api/orders.api";
+import { ordersApi, type Order } from "@/api/orders.api";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNotification } from "@/contexts/NotificationContext";
 
 const ACCENT = "rgb(213, 176, 160)";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
+  shipping: "bg-purple-100 text-purple-800 border-purple-200",
   delivered: "bg-green-100 text-green-800 border-green-200",
+  renting: "bg-indigo-100 text-indigo-800 border-indigo-200",
   completed: "bg-green-100 text-green-800 border-green-200",
   cancelled: "bg-red-100 text-red-800 border-red-200",
 };
 
 const statusLabels: Record<string, string> = {
-  pending: "Pending",
-  confirmed: "Confirmed",
-  delivered: "Delivered",
-  completed: "Completed",
-  cancelled: "Cancelled",
+  pending: "Chờ xác nhận",
+  confirmed: "Đã xác nhận",
+  shipping: "Đang vận chuyển",
+  delivered: "Đã giao hàng",
+  renting: "Đang thuê",
+  completed: "Hoàn thành",
+  cancelled: "Đã hủy",
 };
 
-function OrderCard({ order }: { order: Order }) {
+interface OrderCardProps {
+  order: Order & { totalDeposit?: number; lateFee?: number };
+  onConfirmDelivery?: (order: Order) => void;
+  isConfirming?: boolean;
+}
+
+function OrderCard({ order, onConfirmDelivery, isConfirming }: OrderCardProps) {
   return (
     <div className="border border-slate-200 rounded-lg p-6 bg-white">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="flex-1">
           <div className="font-semibold text-slate-900">Order #{order.orderNumber}</div>
           <div className="mt-1 text-xs text-slate-500">
             {new Date(order.createdAt).toLocaleDateString("vi-VN", {
@@ -38,13 +50,24 @@ function OrderCard({ order }: { order: Order }) {
             })}
           </div>
         </div>
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium border ${
-            statusColors[order.status] || "bg-gray-100 text-gray-800 border-gray-200"
-          }`}
-        >
-          {statusLabels[order.status] || order.status}
-        </span>
+        <div className="flex items-center gap-3">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-medium border ${
+              statusColors[order.status] || "bg-gray-100 text-gray-800 border-gray-200"
+            }`}
+          >
+            {statusLabels[order.status] || order.status}
+          </span>
+          {order.status === "shipping" && onConfirmDelivery && (
+            <button
+              onClick={() => onConfirmDelivery(order)}
+              disabled={isConfirming}
+              className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isConfirming ? "Đang xử lý..." : "✓ Đã nhận hàng"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Items */}
@@ -86,21 +109,33 @@ function OrderCard({ order }: { order: Order }) {
       <div className="mt-5 pt-5 border-t border-slate-200">
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-slate-500">Subtotal</span>
+            <span className="text-slate-500">Tiền thuê</span>
             <span className="font-medium">{formatVND(order.subtotal)}</span>
           </div>
           {order.discount > 0 && (
             <div className="flex justify-between">
-              <span className="text-slate-500">Discount</span>
+              <span className="text-slate-500">Giảm giá</span>
               <span className="font-medium text-green-600">-{formatVND(order.discount)}</span>
             </div>
           )}
           <div className="flex justify-between">
-            <span className="text-slate-500">Shipping</span>
+            <span className="text-slate-500">Phí vận chuyển</span>
             <span className="font-medium">{formatVND(order.shippingFee)}</span>
           </div>
+          {order.totalDeposit && order.totalDeposit > 0 && (
+            <div className="flex justify-between">
+              <span className="text-orange-600 font-medium">Tiền đặt cọc (hoàn trả)</span>
+              <span className="text-orange-600 font-medium">{formatVND(order.totalDeposit)}</span>
+            </div>
+          )}
+          {order.lateFee && order.lateFee > 0 && (
+            <div className="flex justify-between">
+              <span className="text-red-600 font-medium">Phí trả muộn</span>
+              <span className="text-red-600 font-medium">{formatVND(order.lateFee)}</span>
+            </div>
+          )}
           <div className="flex justify-between pt-2 border-t border-slate-200">
-            <span className="font-semibold text-slate-900">Total</span>
+            <span className="font-semibold text-slate-900">Tổng cộng</span>
             <span className="font-semibold text-lg" style={{ color: ACCENT }}>
               {formatVND(order.total)}
             </span>
@@ -174,13 +209,37 @@ function EmptyState() {
 }
 
 export default function OrdersPage() {
+  const { showNotification } = useNotification();
+  const queryClient = useQueryClient();
   const { data, isLoading, isError } = useOrders({ page: 1, limit: 20 });
+
+  // Deliver order mutation (client confirms receipt)
+  const deliverOrderMutation = useMutation({
+    mutationFn: (orderId: string) => ordersApi.deliverOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      showNotification("success", "Đã xác nhận nhận hàng thành công!");
+    },
+    onError: (error: any) => {
+      showNotification("error", error.message || "Xác nhận nhận hàng thất bại");
+    },
+  });
+
+  function handleConfirmDelivery(order: Order) {
+    if (
+      confirm(
+        `Xác nhận bạn đã nhận được đơn hàng ${order.orderNumber}?\nTrạng thái sẽ chuyển sang "Đã giao hàng".`
+      )
+    ) {
+      deliverOrderMutation.mutate(order._id);
+    }
+  }
 
   if (isLoading) {
     return (
       <Container>
         <div className="pt-24 pb-10 md:pt-28 lg:pt-32">
-          <div className="text-sm text-slate-500">Loading your orders...</div>
+          <div className="text-sm text-slate-500">Đang tải đơn hàng...</div>
         </div>
       </Container>
     );
@@ -190,7 +249,7 @@ export default function OrdersPage() {
     return (
       <Container>
         <div className="pt-24 pb-10 md:pt-28 lg:pt-32">
-          <div className="text-sm text-red-600">Failed to load orders. Please try again later.</div>
+          <div className="text-sm text-red-600">Không thể tải đơn hàng. Vui lòng thử lại sau.</div>
         </div>
       </Container>
     );
@@ -213,7 +272,12 @@ export default function OrdersPage() {
           ) : (
             <div className="mt-10 space-y-6">
               {orders.map((order) => (
-                <OrderCard key={order._id} order={order} />
+                <OrderCard
+                  key={order._id}
+                  order={order}
+                  onConfirmDelivery={handleConfirmDelivery}
+                  isConfirming={deliverOrderMutation.isPending}
+                />
               ))}
             </div>
           )}

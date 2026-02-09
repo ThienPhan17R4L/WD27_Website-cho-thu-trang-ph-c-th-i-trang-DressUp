@@ -3,29 +3,24 @@ import { z } from "zod";
 const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ObjectId");
 
 export const createCategorySchema = z.object({
-  body: z.object({
-    name: z.string().trim().min(1),
-    slug: z.string().trim().min(1).optional(), // nếu không gửi -> slugify(name)
+  name: z.string().trim().min(1),
+  slug: z.string().trim().min(1).optional(), // nếu không gửi -> slugify(name)
+  description: z.string().optional(),
+  parentId: objectId.nullable().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+});
+
+export const updateCategorySchema = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    slug: z.string().trim().min(1).optional(),
     description: z.string().optional(),
     parentId: objectId.nullable().optional(),
     isActive: z.boolean().optional(),
     sortOrder: z.number().int().optional(),
-  }),
-});
-
-export const updateCategorySchema = z.object({
-  params: z.object({ id: objectId }),
-  body: z
-    .object({
-      name: z.string().trim().min(1).optional(),
-      slug: z.string().trim().min(1).optional(),
-      description: z.string().optional(),
-      parentId: objectId.nullable().optional(),
-      isActive: z.boolean().optional(),
-      sortOrder: z.number().int().optional(),
-    })
-    .strict(),
-});
+  })
+  .strict();
 
 export const categoryIdParamSchema = z.object({
   params: z.object({ id: objectId }),

@@ -8,19 +8,23 @@ import AdminCategoriesPage from '@/pages/admin/CategoriesPage';
 import AdminOrdersPage from '@/pages/admin/OrdersPage';
 import AppShell from '@/layouts/AppShell';
 import PrivateRoute from '@/router/PrivateRoute';
+import PermissionRoute from '@/router/PermissionRoute';
 import RegisterPage from '@/pages/RegisterPage';
+import VerifyEmailPage from '@/pages/VerifyEmailPage';
 import ProductsPage from '@/pages/ProductsPage';
 import ProductDetailPage from '@/pages/ProductDetailPage';
 import CartPage from '@/pages/CartPage';
 import CheckoutPage from '@/pages/CheckoutPage';
 import OrdersPage from '@/pages/OrdersPage';
+import ActiveRentalsPage from '@/pages/ActiveRentalsPage';
 
 const AppRouter: React.FC = () => {
   return (
     <Routes>
-      {/* Public route */}
+      {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
       <Route path='/register' element={<RegisterPage />} />
+      <Route path='/verify-email' element={<VerifyEmailPage />} />
       <Route element={<AppShell />}>
         <Route path="/home" element={<HomePage />} />
         <Route path="/products" element={<ProductsPage />} />
@@ -28,25 +32,23 @@ const AppRouter: React.FC = () => {
         <Route path='/cart' element={<CartPage />} />
       </Route>
 
-      {/* Admin routes */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="products" element={<AdminProductsPage />} />
-        <Route path="categories" element={<AdminCategoriesPage />} />
-        <Route path="orders" element={<AdminOrdersPage />} />
-      </Route>
       {/* Protected routes (requires login) */}
       <Route element={<PrivateRoute />}>
-        {/* AppShell layout wrapper for authenticated pages */}
+        {/* Admin routes - requires admin role */}
+        <Route element={<PermissionRoute requiredPermission="admin" />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProductsPage />} />
+            <Route path="categories" element={<AdminCategoriesPage />} />
+            <Route path="orders" element={<AdminOrdersPage />} />
+          </Route>
+        </Route>
+
+        {/* Regular user protected routes */}
         <Route element={<AppShell />}>
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/orders" element={<OrdersPage />} />
-          {/* Ví dụ route chỉ dành cho admin (nếu có trang AdminPage) */}
-          {/*
-          <Route element={<PermissionRoute requiredPermission="ADMIN" />}>
-            <Route path="/admin" element={<AdminPage />} />
-          </Route>
-          */}
+          <Route path="/rentals/active" element={<ActiveRentalsPage />} />
         </Route>
       </Route>
       {/* Mặc định: điều hướng các path không khớp về /home (hoặc /login nếu chưa login) */}

@@ -12,7 +12,7 @@ const PermissionRoute: React.FC<PermissionRouteProps> = ({ requiredPermission })
     return <Navigate to="/login" replace />;
   }
   // Đã đăng nhập nhưng không có quyền yêu cầu -> chuyển hướng về home
-  if (requiredPermission && !user.permissions.includes(requiredPermission)) {
+  if (requiredPermission && !user.roles.includes(requiredPermission)) {
     return <Navigate to="/home" replace />;
   }
   // Có quyền phù hợp

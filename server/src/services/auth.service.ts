@@ -187,7 +187,7 @@ export const authService = {
       email: user.email,
       fullName: user.fullName,
       phone: user.phone ?? null,
-      role: user.role,
+      roles: user.roles || ["user"], // Array of roles
       isEmailVerified: Boolean(user.isEmailVerified),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt

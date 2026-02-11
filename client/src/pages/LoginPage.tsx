@@ -60,13 +60,24 @@ export default function Login() {
 
     try {
       setLoading(true);
-      await login(form.email, form.password);
+      const userData = await login(form.email, form.password);
 
-      // ✅ Điều hướng sau login thành công
-      navigate("/home", { replace: true });
-    } catch (err) {
+      // ✅ Role-based redirect: admin → /admin, user → /home
+      const isAdmin = userData.roles.includes("admin");
+      const redirectPath = isAdmin ? "/admin" : "/home";
+      navigate(redirectPath, { replace: true });
+    } catch (err: any) {
       console.error(err);
-      setErrors({ password: "Login failed. Please try again." });
+
+      // Check for email not verified error
+      const errorCode = err?.response?.data?.code;
+      if (errorCode === "EMAIL_NOT_VERIFIED") {
+        setErrors({
+          password: "Email chưa được xác minh. Vui lòng kiểm tra email để xác minh tài khoản."
+        });
+      } else {
+        setErrors({ password: "Login failed. Please try again." });
+      }
     } finally {
       setLoading(false);
     }

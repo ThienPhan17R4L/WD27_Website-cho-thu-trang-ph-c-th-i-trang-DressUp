@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as authApi from '@/api/auth';
 import { AuthContextProps, User } from '@/types/auth';
+import { isTokenExpired } from '@/utils/jwt';
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
@@ -13,13 +14,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const savedUser = localStorage.getItem('user');
     const savedToken = localStorage.getItem('token');
     if (savedUser && savedToken) {
+      const parsedToken = JSON.parse(savedToken);
+
+      // Check if token is already expired
+      if (isTokenExpired(parsedToken)) {
+        console.log('Token expired on mount, logging out...');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+        setToken(null);
+        return;
+      }
+
       setUser(JSON.parse(savedUser));
-      setToken(savedToken);
+      setToken(parsedToken);
     }
   }, []);
 
+  // Auto logout when token expires - check every minute
+  useEffect(() => {
+    if (!token) return;
+
+    const checkTokenExpiry = () => {
+      if (isTokenExpired(token)) {
+        console.log('Token expired, auto logging out...');
+        logout();
+      }
+    };
+
+    // Check immediately
+    checkTokenExpiry();
+
+    // Check every minute (60000ms)
+    const interval = setInterval(checkTokenExpiry, 60000);
+
+    return () => clearInterval(interval);
+  }, [token]);
+
   // Hàm login gọi API và cập nhật context
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     // Gửi request login qua authApi
     const data = await authApi.login({ email, password });
     // Giả định API trả về object chứa token và user
@@ -30,6 +63,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Cập nhật state user
     setUser(userData);
     setToken(accessToken);
+    // Return user data for role-based redirect
+    return userData;
   };
 
   // Hàm logout xóa dữ liệu và reset trạng thái

@@ -21,7 +21,7 @@ export const authController = {
       };
 
       if ("accessToken" in result && result.accessToken) {
-        body.data.accessToken = result.accessToken;
+        body.accessToken = result.accessToken;
       }
 
       return res.status(201).json(body);
@@ -35,9 +35,18 @@ export const authController = {
       const token = String(req.query.token || "");
       await authService.verifyEmail(token);
 
-      return res.status(200).json({ ok: true, message: "Email verified successfully" });
-    } catch (e) {
-      next(e);
+      // Redirect to frontend with success message
+      const frontendUrl = process.env.APP_ORIGIN || "http://localhost:5173";
+      return res.redirect(
+        `${frontendUrl}/verify-email?status=success&message=${encodeURIComponent("Email đã được xác minh thành công!")}`
+      );
+    } catch (e: any) {
+      // Redirect to frontend with error message
+      const frontendUrl = process.env.APP_ORIGIN || "http://localhost:5173";
+      const errorMessage = e.message || "Xác minh email thất bại. Link có thể đã hết hạn.";
+      return res.redirect(
+        `${frontendUrl}/verify-email?status=error&message=${encodeURIComponent(errorMessage)}`
+      );
     }
   },
 

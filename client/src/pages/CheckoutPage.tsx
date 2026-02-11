@@ -335,14 +335,25 @@ export default function CheckoutPage() {
                   )}
 
                   <div className="pt-4 border-t border-slate-300 flex items-center justify-between">
-                    <span className="text-slate-900 font-semibold">Total</span>
+                    <span className="text-slate-900 font-semibold">
+                      {form.paymentMethod === "cod" ? "Total (COD)" : "Total to Pay Now"}
+                    </span>
                     <span
                       className="text-xl font-semibold"
                       style={{ color: ACCENT }}
                     >
-                      {formatVND(totals.grandTotal)}
+                      {form.paymentMethod === "cod"
+                        ? formatVND(totals.grandTotal)
+                        : formatVND(totals.grandTotal + totalDeposit)
+                      }
                     </span>
                   </div>
+
+                  {form.paymentMethod !== "cod" && totalDeposit > 0 && (
+                    <div className="mt-2 text-xs text-slate-600">
+                      * Online payment includes rental fee and deposit
+                    </div>
+                  )}
                 </div>
 
                 {/* Late fee warning */}

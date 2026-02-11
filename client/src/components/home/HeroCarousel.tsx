@@ -100,7 +100,7 @@ export function HeroCarousel({
               {/* dùng variant trong /common/Button.tsx */}
               <Button
                 variant="hero"
-                onClick={() => (window.location.href = "/find")}
+                onClick={() => (window.location.href = "/products")}
               >
                 FIND YOUR DRESS
               </Button>

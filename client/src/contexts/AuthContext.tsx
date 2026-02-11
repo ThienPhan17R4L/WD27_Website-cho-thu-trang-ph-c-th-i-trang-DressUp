@@ -8,6 +8,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true); // Add loading state
 
   // Kiểm tra localStorage để load trạng thái đăng nhập (nếu user đã login trước đó)
   useEffect(() => {
@@ -23,12 +24,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         localStorage.removeItem('user');
         setUser(null);
         setToken(null);
+        setLoading(false);
         return;
       }
 
       setUser(JSON.parse(savedUser));
       setToken(parsedToken);
     }
+    setLoading(false); // Done loading
   }, []);
 
   // Auto logout when token expires - check every minute
@@ -78,6 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     user,
     token,
     isAuthenticated: !!user,
+    loading,
     login,
     logout
   };

@@ -13,6 +13,7 @@ export interface AuthContextProps {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  loading: boolean;
   login: (email: string, password: string) => Promise<User>;
   logout: () => void;
 }

@@ -20,9 +20,16 @@ function findRentalPrice(product: any, days: number): number {
   }
 
   const sorted = [...product.rentalTiers].sort((a, b) => a.days - b.days);
-  const tier = sorted.find(t => t.days >= days) || sorted[sorted.length - 1];
+
+  // Find the highest tier where tier.days <= rental days (price decreases with more days)
+  // Example: tiers = [{days:1,price:100}, {days:3,price:80}, {days:7,price:60}]
+  // If renting 5 days -> use tier {days:3,price:80} -> total = 5 * 80
+  const tier = [...sorted].reverse().find(t => t.days <= days) || sorted[0];
 
   if (!tier) throw new HttpError(400, "No rental tier available");
+
+  console.log(`[findRentalPrice] Product: ${product.name}, Days: ${days}, Tier: ${tier.days} days, Price/day: ${tier.price}`);
+
   return tier.price;
 }
 
@@ -33,6 +40,9 @@ export const CartService = {
 
     const items = cart.items.map((item: any) => {
       const lineTotal = item.rental.days * item.rental.price * item.quantity;
+
+      console.log(`[Cart Item] ${item.name}: days=${item.rental.days}, price/day=${item.rental.price}, qty=${item.quantity}, lineTotal=${lineTotal}`);
+
       return {
         ...item,
         _id: item._id || new Types.ObjectId(),

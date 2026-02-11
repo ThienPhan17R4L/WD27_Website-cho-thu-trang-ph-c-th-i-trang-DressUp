@@ -33,10 +33,11 @@ export const PaymentController = {
       const clientUrl = env.APP_ORIGIN; // Client URL (e.g., http://localhost:5173)
       const apiUrl = env.API_BASE_URL || `http://localhost:${env.PORT}`; // API URL
 
-      // Create MoMo payment
+      // Create MoMo payment (including deposit for online payment)
+      const totalAmount = order.total + (order.totalDeposit || 0);
       const payment = await MoMoService.createPayment({
         orderId: order.orderNumber,
-        amount: order.total,
+        amount: totalAmount,
         orderInfo: `DressUp Order ${order.orderNumber}`,
         returnUrl: `${clientUrl}/orders`, // Redirect to orders page after payment
         notifyUrl: `${apiUrl}/payment/momo/callback`, // IPN callback

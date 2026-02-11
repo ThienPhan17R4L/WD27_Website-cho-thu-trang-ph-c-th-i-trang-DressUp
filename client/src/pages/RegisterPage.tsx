@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as authApi from "@/api/auth";
 import { useNotification } from "@/contexts/NotificationContext";
+import { useAuth } from "@/contexts/AuthContext";
 import logo from '@/assets/logo.svg';
 
 function isValidEmail(email: string) {
@@ -16,6 +17,7 @@ function isValidVNPhone(phone: string) {
 export default function RegisterPage() {
 	const navigate = useNavigate();
 	const { showNotification } = useNotification();
+	const { user, isAuthenticated } = useAuth();
 
 	const [form, setForm] = useState({
 		email: "",
@@ -26,6 +28,15 @@ export default function RegisterPage() {
 	});
 
 	const [loading, setLoading] = useState(false);
+
+	// Auto-redirect if already logged in
+	useEffect(() => {
+		if (isAuthenticated && user) {
+			const isAdmin = user.roles?.includes("admin");
+			const redirectPath = isAdmin ? "/admin" : "/home";
+			navigate(redirectPath, { replace: true });
+		}
+	}, [isAuthenticated, user, navigate]);
 
 	function handleChange(field: string, value: string) {
 		setForm(prev => ({ ...prev, [field]: value }));

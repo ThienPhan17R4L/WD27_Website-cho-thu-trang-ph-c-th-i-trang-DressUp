@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { AppError } from "../utils/errors";
+import { logger } from "../utils/logger";
 
 export class HttpError extends Error {
   status: number;
@@ -55,6 +56,6 @@ export function errorHandler(err: any, _req: Request, res: Response, _next: Next
     });
   }
 
-  console.error(err);
+  logger.error("Unhandled error", { error: err?.message, stack: err?.stack });
   return res.status(500).json({ message: "Internal server error" });
 }

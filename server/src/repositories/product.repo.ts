@@ -9,6 +9,7 @@ export type ListQuery = {
   sort?: string;
   q?: string;
   categoryId?: string;
+  categoryIds?: string | string[]; // single id hoặc mảng (từ query string axios)
   status?: ProductStatus;
   tag?: string;
   brand?: string;
@@ -72,6 +73,7 @@ export class ProductRepository {
       sort,
       q,
       categoryId,
+      categoryIds,
       status,
       tag,
       brand,
@@ -81,16 +83,28 @@ export class ProductRepository {
 
     const match: Record<string, any> = {};
 
-    if (categoryId) match.categoryId = new Types.ObjectId(categoryId);
+    // categoryIds[] (ưu tiên nếu có) — đến từ axios array serialize
+    const ids = categoryIds
+      ? (Array.isArray(categoryIds) ? categoryIds : [categoryIds]).filter(Boolean)
+      : [];
+    if (ids.length > 0) {
+      match.categoryId = { $in: ids.map((id) => new Types.ObjectId(id as string)) };
+    } else if (categoryId) {
+      match.categoryId = new Types.ObjectId(categoryId);
+    }
     if (status) match.status = status;
     if (tag) match.tags = tag;
     if (brand) match.brand = new RegExp(`^${escapeRegExp(brand)}$`, "i");
 
-    const pipeline: any[] = [{ $match: match }];
-
     const hasQ = Boolean(q && q.trim());
     if (hasQ) {
-      pipeline.push({ $match: { $text: { $search: q!.trim() } } });
+      match.$text = { $search: q!.trim() };
+    }
+
+    // $text must be in the FIRST $match stage
+    const pipeline: any[] = [{ $match: match }];
+
+    if (hasQ) {
       pipeline.push({ $addFields: { score: { $meta: "textScore" } } });
     }
 
@@ -107,11 +121,13 @@ export class ProductRepository {
       },
     });
 
-    // ✅ filter by price range (VND)
-    if (priceMin != null || priceMax != null) {
+    // ✅ filter by price range (VND) — query params arrive as strings, must convert to number
+    const pMin = priceMin != null ? Number(priceMin) : null;
+    const pMax = priceMax != null ? Number(priceMax) : null;
+    if ((pMin != null && !isNaN(pMin)) || (pMax != null && !isNaN(pMax))) {
       const range: any = {};
-      if (priceMin != null) range.$gte = priceMin;
-      if (priceMax != null) range.$lte = priceMax;
+      if (pMin != null && !isNaN(pMin)) range.$gte = pMin;
+      if (pMax != null && !isNaN(pMax)) range.$lte = pMax;
 
       pipeline.push({ $match: { minPrice: range } });
     }

@@ -19,10 +19,11 @@ const VariantZ = z.object({
 export const createProductSchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1).optional(), // nếu không gửi sẽ tự generate từ name
-  categoryId: objectId.optional(),
+  categoryId: objectId,
   brand: z.string().trim().optional(),
   material: z.string().trim().optional(),
   colorFamily: z.string().trim().optional(),
+  condition: z.enum(["new", "like-new", "good"]).default("new"),
   description: z.string().optional(),
   images: z.array(z.string().trim()).default([]),
   rentalTiers: z.array(RentalTierZ).default([]),
@@ -42,6 +43,7 @@ export const updateProductSchema = z
     brand: z.string().trim().optional(),
     material: z.string().trim().optional(),
     colorFamily: z.string().trim().optional(),
+    condition: z.enum(["new", "like-new", "good"]).optional(),
     description: z.string().optional(),
     images: z.array(z.string().trim()).optional(),
     rentalTiers: z.array(RentalTierZ).optional(),

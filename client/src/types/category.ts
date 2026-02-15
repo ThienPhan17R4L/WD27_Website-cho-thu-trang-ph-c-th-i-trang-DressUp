@@ -3,11 +3,17 @@ export type Category = {
   name: string;
   slug: string;
   description?: string;
+  image?: string;
   parentId?: string | null;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type CategoryTreeResponse = {
+  roots: Category[];
+  children: Record<string, Category[]>;
 };
 
 export type CategoryListResponse = {

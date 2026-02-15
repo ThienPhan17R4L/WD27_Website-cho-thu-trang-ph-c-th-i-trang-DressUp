@@ -1,4 +1,4 @@
-import { HttpError } from "../middlewares/errorHanler";
+import { HttpError } from "../middlewares/errorHandler";
 import { slugify } from "../utils/slug";
 import { CategoryRepository } from "../repositories/category.repo";
 import { ProductRepository, ListQuery } from "../repositories/product.repo";

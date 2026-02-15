@@ -1,5 +1,5 @@
 import { CategoryModel } from "../models/Category";
-import { HttpError } from "../middlewares/errorHanler";
+import { HttpError } from "../middlewares/errorHandler";
 import { slugify } from "../utils/slug";
 
 type ListQuery = {

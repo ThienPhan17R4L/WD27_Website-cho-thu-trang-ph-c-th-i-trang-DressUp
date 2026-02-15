@@ -20,6 +20,7 @@ export type Product = {
   brand?: string;
   material?: string;
   colorFamily?: string;
+  condition: "new" | "like-new" | "good";
   description?: string;
   images: string[];
   rentalTiers: RentalTier[];
@@ -52,6 +53,8 @@ export type ProductListParamsInput = {
   status?: ProductStatus;
   tag?: string;
   brand?: string;
+  priceMin?: number;
+  priceMax?: number;
 };
 
 // params thực sự gửi sang API (đã normalize)
@@ -64,5 +67,7 @@ export type ProductListParams = {
   status?: ProductStatus;
   tag?: string;
   brand?: string;
+  priceMin?: number;
+  priceMax?: number;
 };
 

@@ -6,6 +6,7 @@ export const createCategorySchema = z.object({
   name: z.string().trim().min(1),
   slug: z.string().trim().min(1).optional(), // nếu không gửi -> slugify(name)
   description: z.string().optional(),
+  image: z.string().trim().optional(),
   parentId: objectId.nullable().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
@@ -16,6 +17,7 @@ export const updateCategorySchema = z
     name: z.string().trim().min(1).optional(),
     slug: z.string().trim().min(1).optional(),
     description: z.string().optional(),
+    image: z.string().trim().optional(),
     parentId: objectId.nullable().optional(),
     isActive: z.boolean().optional(),
     sortOrder: z.number().int().optional(),

@@ -1,4 +1,4 @@
-import { HttpError } from "../middlewares/errorHanler";
+import { HttpError } from "../middlewares/errorHandler";
 import { CartRepository } from "../repositories/cart.repo";
 import { ProductRepository } from "../repositories/product.repo";
 import { Types } from "mongoose";

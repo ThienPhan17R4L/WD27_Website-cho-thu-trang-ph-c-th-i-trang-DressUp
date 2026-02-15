@@ -96,6 +96,11 @@ const UserSchema = new Schema(
       verifiedAt: { type: Date }
     },
 
+    blockReason: {
+      type: String,
+      trim: true
+    },
+
     // ===== SYSTEM =====
     lastLoginAt: {
       type: Date

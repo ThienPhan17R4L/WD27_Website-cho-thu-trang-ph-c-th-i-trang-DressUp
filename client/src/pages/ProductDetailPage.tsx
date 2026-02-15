@@ -83,15 +83,6 @@ export default function ProductDetailPage() {
     );
   }, [product?.variants, size, color]);
 
-  // Nếu bạn có field pricePerDay theo variant/tier, render "xxx / day" giống ảnh
-  const pricePerDay = useMemo(() => {
-    // ưu tiên variant nếu có
-    const v: any = pickedVariant as any;
-    if (v?.pricePerDay) return v.pricePerDay;
-    // fallback lấy tier 1 ngày (nếu bạn có)
-    const t = product?.rentalTiers?.find?.((x: any) => x.days === 1);
-    return t?.price ?? null;
-  }, [pickedVariant, product?.rentalTiers]);
 
   if (isLoading) {
     return (

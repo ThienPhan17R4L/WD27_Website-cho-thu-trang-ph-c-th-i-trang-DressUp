@@ -16,10 +16,12 @@ export interface ProductDoc {
   _id: Types.ObjectId;
   name: string;
   slug: string;
+  description?: string;
   categoryId: Types.ObjectId;
   brand?: string;
   material?: string;
   colorFamily?: string;
+  condition: "new" | "like-new" | "good";
   images: string[];
   rentalTiers: RentalTier[];
   depositDefault: number;
@@ -54,10 +56,12 @@ const ProductSchema = new Schema<ProductDoc>(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    description: { type: String },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     brand: { type: String, trim: true },
     material: { type: String, trim: true },
     colorFamily: { type: String, trim: true },
+    condition: { type: String, enum: ["new", "like-new", "good"], default: "new" },
     images: { type: [String], default: [] },
     rentalTiers: { type: [RentalTierSchema], default: [] },
     depositDefault: { type: Number, default: 0, min: 0 },

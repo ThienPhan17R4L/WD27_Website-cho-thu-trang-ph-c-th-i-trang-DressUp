@@ -1,26 +1,43 @@
 import { cancelExpiredCODOrders } from "./cancelExpiredOrders";
+import { detectOverdueRentals } from "./detectOverdueRentals";
+import { logger } from "../utils/logger";
 
 /**
  * Start all cron jobs
  * - Cancel expired COD orders: every 10 minutes
+ * - Detect overdue rentals: every 30 minutes
  */
 export function startCronJobs() {
-  console.log("[CRON] Starting cron jobs...");
+  logger.info("Starting cron jobs...");
 
   // Run immediately on startup
   cancelExpiredCODOrders().then((count) => {
     if (count > 0) {
-      console.log(`[CRON] Initial run: Cancelled ${count} expired COD orders`);
+      logger.info(`Initial run: Cancelled ${count} expired COD orders`);
     }
   });
 
-  // Run every 10 minutes (600,000 ms)
+  detectOverdueRentals().then((count) => {
+    if (count > 0) {
+      logger.info(`Initial run: Detected ${count} overdue rentals`);
+    }
+  });
+
+  // Cancel expired COD orders every 10 minutes
   setInterval(async () => {
     const count = await cancelExpiredCODOrders();
     if (count > 0) {
-      console.log(`[CRON] Cancelled ${count} expired COD orders`);
+      logger.info(`Cancelled ${count} expired COD orders`);
     }
   }, 10 * 60 * 1000);
 
-  console.log("[CRON] Cron jobs started successfully");
+  // Detect overdue rentals every 30 minutes
+  setInterval(async () => {
+    const count = await detectOverdueRentals();
+    if (count > 0) {
+      logger.info(`Detected ${count} overdue rentals`);
+    }
+  }, 30 * 60 * 1000);
+
+  logger.info("Cron jobs started successfully");
 }

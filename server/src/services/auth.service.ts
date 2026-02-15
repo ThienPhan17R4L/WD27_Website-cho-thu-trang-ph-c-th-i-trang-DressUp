@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { env } from "../config/env";
 import { UserModel } from "../models/User";
 import { EmailVerificationTokenModel } from "../models/EmailVerificationToken";
+import { PasswordResetTokenModel } from "../models/PasswordResetToken";
 import {
   ConflictError,
   UnauthorizedError,
@@ -95,7 +96,7 @@ export const authService = {
       }
 
       // If verification not required: issue access token
-      const accessToken = signAccessToken(String(created._id));
+      const accessToken = signAccessToken(String(created._id), created.roles || ["user"]);
       return {
         user: this.sanitizeUser(created),
         accessToken,
@@ -164,7 +165,7 @@ export const authService = {
       throw new ForbiddenError("EMAIL_NOT_VERIFIED", "Email is not verified");
     }
 
-    const accessToken = signAccessToken(String(user._id));
+    const accessToken = signAccessToken(String(user._id), user.roles || ["user"]);
     return {
       user: this.sanitizeUser(user),
       accessToken
@@ -181,13 +182,71 @@ export const authService = {
     return { user: this.sanitizeUser(user) };
   },
 
+  async forgotPassword(email: string) {
+    const user = await UserModel.findOne({ email });
+    // Always return success to prevent email enumeration
+    if (!user) return { ok: true };
+
+    const rawToken = nanoid(48);
+    const tokenHash = await hashToken(rawToken);
+
+    await PasswordResetTokenModel.create({
+      userId: user._id,
+      tokenHash,
+      expiresAt: minutesFromNow(30), // 30 minutes
+    });
+
+    const resetLink = `${env.APP_ORIGIN}/reset-password?token=${encodeURIComponent(rawToken)}`;
+    await sendEmail({
+      to: email,
+      subject: "Reset your password - DressUp",
+      html: `
+        <p>Hi ${user.fullName},</p>
+        <p>You requested a password reset. Click below:</p>
+        <p><a href="${resetLink}">Reset Password</a></p>
+        <p>This link expires in 30 minutes.</p>
+        <p>If you didn't request this, ignore this email.</p>
+      `,
+    });
+
+    return { ok: true };
+  },
+
+  async resetPassword(rawToken: string, newPassword: string) {
+    if (!rawToken) throw new BadRequestError("TOKEN_REQUIRED", "Token is required");
+
+    const candidates = await PasswordResetTokenModel.find({
+      usedAt: { $exists: false },
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 }).limit(50);
+
+    for (const doc of candidates) {
+      const ok = await verifyTokenHash(rawToken, doc.tokenHash);
+      if (!ok) continue;
+
+      const newHash = await hashPassword(newPassword);
+      await UserModel.updateOne(
+        { _id: doc.userId },
+        { $set: { passwordHash: newHash } }
+      );
+      await PasswordResetTokenModel.updateOne(
+        { _id: doc._id },
+        { $set: { usedAt: new Date() } }
+      );
+
+      return { ok: true };
+    }
+
+    throw new BadRequestError("INVALID_OR_EXPIRED_TOKEN", "Token is invalid or expired");
+  },
+
   sanitizeUser(user: any) {
     return {
       id: String(user._id),
       email: user.email,
       fullName: user.fullName,
       phone: user.phone ?? null,
-      roles: user.roles || ["user"], // Array of roles
+      roles: user.roles || ["user"],
       isEmailVerified: Boolean(user.isEmailVerified),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt

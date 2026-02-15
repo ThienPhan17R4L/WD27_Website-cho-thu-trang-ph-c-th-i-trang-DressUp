@@ -92,7 +92,7 @@ export default function Login() {
     }
   }
 
-  async function handleSocialLogin(provider: Provider) {
+  async function handleSocialLogin(_provider: Provider) {
     if (loading) return;
 
     try {

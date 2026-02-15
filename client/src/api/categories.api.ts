@@ -1,4 +1,4 @@
-import type { CategoryListResponse, Category } from "../types/category";
+import type { CategoryListResponse, CategoryTreeResponse, Category } from "../types/category";
 import axiosInstance from "./axios";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 
@@ -10,6 +10,13 @@ export async function getCategories() {
     params: { isActive: true, limit: 200, sort: "sortOrder" }
   });
   return res.data.items;
+}
+
+/**
+ * Get category tree (public) — roots + children grouped by parentId
+ */
+export async function getCategoryTree() {
+  return apiGet<CategoryTreeResponse>("/categories/tree");
 }
 
 /**
@@ -38,6 +45,7 @@ export async function createCategory(data: {
   name: string;
   slug?: string;
   description?: string;
+  image?: string;
   parentId?: string | null;
   isActive?: boolean;
   sortOrder?: number;
@@ -52,6 +60,7 @@ export async function updateCategory(id: string, data: Partial<{
   name: string;
   slug: string;
   description: string;
+  image: string;
   parentId: string | null;
   isActive: boolean;
   sortOrder: number;

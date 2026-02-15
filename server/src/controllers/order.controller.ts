@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { OrderService } from "../services/order.service";
-import { OrderModel } from "../models/Order";
 
 export const OrderController = {
   async create(req: Request, res: Response) {
@@ -11,115 +10,89 @@ export const OrderController = {
 
   async getById(req: Request, res: Response) {
     const userId = (req as any).user!.id as string;
-    const { id } = req.params;
-
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ message: "Invalid Order ID" });
-    }
-
+    const id = String(req.params.id);
     const order = await OrderService.getOrderById(id, userId);
     res.json(order);
   },
 
   async getAll(req: Request, res: Response) {
-    const userId = (req as any).user!.id;
+    const user = (req as any).user!;
+    const userId = user.id;
+    const isStaffOrAdmin = user.roles?.includes("admin") || user.roles?.includes("staff");
     const { status, page, limit } = req.query;
 
     const filters: { status?: string; page?: number; limit?: number } = {};
-    if (typeof status === "string") {
-      filters.status = status;
-    }
-    if (typeof page === "string") {
-      filters.page = parseInt(page);
-    }
-    if (typeof limit === "string") {
-      filters.limit = parseInt(limit);
-    }
+    if (typeof status === "string") filters.status = status;
+    if (typeof page === "string") filters.page = parseInt(page);
+    if (typeof limit === "string") filters.limit = parseInt(limit);
 
-    const orders = await OrderService.getOrders(userId, filters);
+    const orders = isStaffOrAdmin
+      ? await OrderService.getAllOrders(filters)
+      : await OrderService.getOrders(userId, filters);
+
     res.json(orders);
   },
 
-  /**
-   * PATCH /api/orders/:id/confirm
-   * Admin xác nhận đơn hàng (COD only)
-   */
+  /** PATCH /orders/:id/confirm - Admin xác nhận đơn hàng */
   async confirmOrder(req: Request, res: Response) {
-    const { id } = req.params;
-
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ message: "Invalid Order ID" });
-    }
-
-    const order = await OrderService.confirmOrder(id);
+    const id = String(req.params.id);
+    const adminId = (req as any).user!.id;
+    const order = await OrderService.confirmOrder(id, adminId);
     res.json(order);
   },
 
-  /**
-   * PATCH /api/orders/:id/ship
-   * Admin gửi hàng
-   */
+  /** PATCH /orders/:id/pick - Staff chuẩn bị hàng */
+  async pickOrder(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const staffId = (req as any).user!.id;
+    const order = await OrderService.pickOrder(id, staffId);
+    res.json(order);
+  },
+
+  /** PATCH /orders/:id/ship - Admin gửi hàng */
   async shipOrder(req: Request, res: Response) {
-    const { id } = req.params;
-
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ message: "Invalid Order ID" });
-    }
-
-    const order = await OrderService.shipOrder(id);
+    const id = String(req.params.id);
+    const adminId = (req as any).user!.id;
+    const order = await OrderService.shipOrder(id, adminId);
     res.json(order);
   },
 
-  /**
-   * PATCH /api/orders/:id/deliver
-   * Client xác nhận đã nhận hàng
-   */
+  /** PATCH /orders/:id/deliver - Client xác nhận đã nhận hàng */
   async deliverOrder(req: Request, res: Response) {
-    const { id } = req.params;
+    const id = String(req.params.id);
     const userId = (req as any).user!.id as string;
-
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ message: "Invalid Order ID" });
-    }
-
-    // Verify order ownership before allowing delivery confirmation
-    await OrderService.getOrderById(id, userId);
-
-    // Update order status
-    const order = await OrderService.deliverOrder(id);
+    const order = await OrderService.deliverOrder(id, userId);
     res.json(order);
   },
 
-  /**
-   * PATCH /api/orders/:id/complete
-   * Hoàn thành đơn hàng (đã trả đồ)
-   */
-  async completeOrder(req: Request, res: Response) {
-    const { id } = req.params;
-    const { actualReturnDate } = req.body;
-
-    if (!id || typeof id !== "string") {
-      return res.status(400).json({ message: "Invalid Order ID" });
-    }
-
-    const order = await OrderService.completeOrder(id, actualReturnDate);
+  /** PATCH /orders/:id/activate - Bắt đầu thuê */
+  async activateRental(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const userId = (req as any).user!.id as string;
+    const order = await OrderService.activateRental(id, userId);
     res.json(order);
   },
 
-  /**
-   * GET /api/orders/active-rentals
-   * Lấy danh sách đơn hàng đang được thuê (status = renting hoặc delivered)
-   */
+  /** PATCH /orders/:id/cancel - Huỷ đơn hàng */
+  async cancelOrder(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const userId = (req as any).user!.id as string;
+    const { reason } = req.body;
+    const order = await OrderService.cancelOrder(id, userId, reason);
+    res.json(order);
+  },
+
+  /** GET /orders/active-rentals */
   async getActiveRentals(req: Request, res: Response) {
     const userId = (req as any).user!.id as string;
-
-    const rentals = await OrderModel.find({
-      userId,
-      status: { $in: ["delivered", "renting"] },
-    })
-      .populate("items.productId")
-      .sort({ deliveredAt: -1 });
-
+    const rentals = await OrderService.getActiveRentals(userId);
     res.json({ items: rentals });
+  },
+
+  /** GET /orders/:id/late-fee - Xem phí trễ hạn (preview) */
+  async getLateFee(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const lateFee = await OrderService.calculateLateFee(id);
+    res.json({ lateFee });
   },
 };

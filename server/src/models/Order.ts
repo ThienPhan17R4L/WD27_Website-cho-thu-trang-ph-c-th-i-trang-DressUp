@@ -1,16 +1,31 @@
 import { Schema, model, Types } from "mongoose";
 
 export type OrderStatus =
-  | "pending"        // Chờ xác nhận (mới tạo)
-  | "confirmed"      // Đã xác nhận (admin xác nhận)
-  | "shipping"       // Đang vận chuyển (admin gửi hàng)
-  | "delivered"      // Đã giao hàng (khách nhận hàng)
-  | "renting"        // Đang thuê (trong thời gian thuê)
-  | "completed"      // Hoàn thành (đã trả đồ)
-  | "cancelled";     // Đã hủy
+  | "draft"
+  | "pending_payment"
+  | "confirmed"
+  | "picking"
+  | "shipping"
+  | "delivered"
+  | "active_rental"
+  | "returned"
+  | "overdue"
+  | "inspecting"
+  | "completed"
+  | "cancelled"
+  // Legacy statuses for backward compatibility
+  | "pending"
+  | "renting";
 
-export type PaymentMethod = "cod" | "vnpay" | "momo" | "zalopay";
+export type PaymentMethod = "cod" | "vnpay" | "momo" | "zalopay" | "mock";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export interface StatusHistoryEntry {
+  status: string;
+  timestamp: Date;
+  changedBy?: string;
+  notes?: string;
+}
 
 export interface OrderItem {
   productId: Types.ObjectId;
@@ -42,38 +57,53 @@ export interface ShippingAddress {
 export interface OrderDoc {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
-  orderNumber: string; // e.g. "DU20250206001"
+  orderNumber: string;
 
   items: OrderItem[];
-
   shippingAddress: ShippingAddress;
 
   subtotal: number;
   discount: number;
   shippingFee: number;
-  totalDeposit: number; // Tổng tiền đặt cọc
-  total: number; // Tổng tiền thuê (chưa bao gồm cọc)
+  serviceFee: number;
+  couponCode?: string;
+  couponDiscount: number;
+  totalDeposit: number;
+  total: number;
 
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
-  paymentDetails?: any; // VNPay transaction info, etc.
+  paymentDetails?: any;
 
   status: OrderStatus;
+  statusHistory: StatusHistoryEntry[];
 
   notes?: string;
 
   // Rental tracking
-  pickupDeadline?: Date; // For COD orders: 2 hours from order creation
-  confirmedAt?: Date; // Thời gian admin xác nhận
-  shippedAt?: Date; // Thời gian gửi hàng
-  deliveredAt?: Date; // Thời gian khách nhận hàng
-  actualReturnDate?: Date; // Thời gian khách trả đồ thực tế
-  lateFee: number; // Phí phạt trả muộn
-  depositRefunded: number; // Số tiền cọc đã hoàn
+  pickupDeadline?: Date;
+  confirmedAt?: Date;
+  shippedAt?: Date;
+  deliveredAt?: Date;
+  returnedAt?: Date;
+  inspectedAt?: Date;
+  actualReturnDate?: Date;
+  lateFee: number;
+  depositRefunded: number;
 
   createdAt: Date;
   updatedAt: Date;
 }
+
+const StatusHistorySchema = new Schema<StatusHistoryEntry>(
+  {
+    status: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    changedBy: { type: String },
+    notes: { type: String },
+  },
+  { _id: false }
+);
 
 const OrderItemSchema = new Schema<OrderItem>(
   {
@@ -120,11 +150,14 @@ const OrderSchema = new Schema<OrderDoc>(
     subtotal: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
     shippingFee: { type: Number, default: 0, min: 0 },
+    serviceFee: { type: Number, default: 0, min: 0 },
+    couponCode: { type: String },
+    couponDiscount: { type: Number, default: 0, min: 0 },
     totalDeposit: { type: Number, required: true, min: 0 },
     total: { type: Number, required: true, min: 0 },
     paymentMethod: {
       type: String,
-      enum: ["cod", "vnpay", "momo", "zalopay"],
+      enum: ["cod", "vnpay", "momo", "zalopay", "mock"],
       required: true,
     },
     paymentStatus: {
@@ -136,16 +169,24 @@ const OrderSchema = new Schema<OrderDoc>(
     paymentDetails: { type: Schema.Types.Mixed },
     status: {
       type: String,
-      enum: ["pending", "confirmed", "shipping", "delivered", "renting", "completed", "cancelled"],
-      default: "pending",
+      enum: [
+        "draft", "pending_payment", "confirmed", "picking", "shipping",
+        "delivered", "active_rental", "returned", "overdue", "inspecting",
+        "completed", "cancelled",
+        // Legacy
+        "pending", "renting",
+      ],
+      default: "pending_payment",
       index: true,
     },
+    statusHistory: { type: [StatusHistorySchema], default: [] },
     notes: { type: String },
-    // Rental tracking
     pickupDeadline: { type: Date },
     confirmedAt: { type: Date },
     shippedAt: { type: Date },
     deliveredAt: { type: Date },
+    returnedAt: { type: Date },
+    inspectedAt: { type: Date },
     actualReturnDate: { type: Date },
     lateFee: { type: Number, default: 0, min: 0 },
     depositRefunded: { type: Number, default: 0, min: 0 },
@@ -153,7 +194,6 @@ const OrderSchema = new Schema<OrderDoc>(
   { timestamps: true }
 );
 
-// Indexes for queries
 OrderSchema.index({ userId: 1, createdAt: -1 });
 OrderSchema.index({ orderNumber: 1 });
 OrderSchema.index({ status: 1, createdAt: -1 });

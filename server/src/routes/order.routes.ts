@@ -5,6 +5,7 @@ import { validateBody } from "../middlewares/validate";
 import { createOrderSchema } from "../schemas/order.schema";
 import { requireAuth } from "../middlewares/auth.middleware";
 import { requireAdmin } from "../middlewares/admin.middleware";
+import { requireStaffOrAdmin } from "../middlewares/staff.middleware";
 
 export const orderRouter = Router();
 
@@ -17,11 +18,14 @@ orderRouter.get("/", asyncHandler(OrderController.getAll));
 orderRouter.get("/active-rentals", asyncHandler(OrderController.getActiveRentals));
 
 orderRouter.get("/:id", asyncHandler(OrderController.getById));
+orderRouter.get("/:id/late-fee", asyncHandler(OrderController.getLateFee));
 
-// Order status transitions - Admin only
+// Order status transitions - Admin/Staff
 orderRouter.patch("/:id/confirm", requireAdmin, asyncHandler(OrderController.confirmOrder));
-orderRouter.patch("/:id/ship", requireAdmin, asyncHandler(OrderController.shipOrder));
-orderRouter.patch("/:id/complete", requireAdmin, asyncHandler(OrderController.completeOrder));
+orderRouter.patch("/:id/pick", requireStaffOrAdmin, asyncHandler(OrderController.pickOrder));
+orderRouter.patch("/:id/ship", requireStaffOrAdmin, asyncHandler(OrderController.shipOrder));
 
-// Order status transitions - Client
+// Order status transitions - Customer
 orderRouter.patch("/:id/deliver", asyncHandler(OrderController.deliverOrder));
+orderRouter.patch("/:id/activate", asyncHandler(OrderController.activateRental));
+orderRouter.patch("/:id/cancel", asyncHandler(OrderController.cancelOrder));

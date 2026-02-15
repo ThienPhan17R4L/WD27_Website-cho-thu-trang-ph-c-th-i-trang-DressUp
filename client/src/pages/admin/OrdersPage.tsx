@@ -5,16 +5,13 @@ import { PaginationBar } from "@/components/common/PaginationBar";
 import { ordersApi, type Order } from "@/api/orders.api";
 import { formatVND } from "@/utils/formatCurrency";
 import { useNotification } from "@/contexts/NotificationContext";
+import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/types/order";
+import { OrderTimeline } from "@/components/orders/OrderTimeline";
 
-const statusLabels: Record<string, string> = {
-  pending: "Chờ xác nhận",
-  confirmed: "Đã xác nhận",
-  delivered: "Đã giao",
-  completed: "Hoàn thành",
-  cancelled: "Đã hủy",
-};
+const statusLabels = ORDER_STATUS_LABELS;
 
 const statusColors: Record<string, string> = {
+  ...ORDER_STATUS_COLORS,
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
   delivered: "bg-green-100 text-green-800 border-green-200",
@@ -75,6 +72,30 @@ export default function AdminOrdersPage() {
         "error",
         error.message || "Cập nhật trạng thái thất bại"
       );
+    },
+  });
+
+  // Confirm order mutation
+  const confirmMutation = useMutation({
+    mutationFn: (id: string) => ordersApi.admin.confirmOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      showNotification("success", "Đã xác nhận đơn hàng!");
+    },
+    onError: (error: any) => {
+      showNotification("error", error.message || "Xác nhận thất bại");
+    },
+  });
+
+  // Pick order mutation
+  const pickMutation = useMutation({
+    mutationFn: (id: string) => ordersApi.admin.pickOrder(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      showNotification("success", "Đã chuyển sang chuẩn bị hàng!");
+    },
+    onError: (error: any) => {
+      showNotification("error", error.message || "Thao tác thất bại");
     },
   });
 
@@ -153,9 +174,16 @@ export default function AdminOrdersPage() {
             className="rounded-md border border-slate-200 px-3 py-2 text-sm"
           >
             <option value="">Tất cả trạng thái</option>
+            <option value="pending_payment">Chờ thanh toán</option>
             <option value="pending">Chờ xác nhận</option>
             <option value="confirmed">Đã xác nhận</option>
+            <option value="picking">Đang chuẩn bị</option>
+            <option value="shipping">Đang vận chuyển</option>
             <option value="delivered">Đã giao</option>
+            <option value="active_rental">Đang thuê</option>
+            <option value="overdue">Quá hạn</option>
+            <option value="returned">Đã trả</option>
+            <option value="inspecting">Đang kiểm tra</option>
             <option value="completed">Hoàn thành</option>
             <option value="cancelled">Đã hủy</option>
           </select>
@@ -263,16 +291,31 @@ export default function AdminOrdersPage() {
                         >
                           Cập nhật
                         </button>
-                        {(order.status === "pending" ||
-                          order.status === "confirmed") && (
+                        {(order.status === "pending" || order.status === "pending_payment") && (
+                          <button
+                            onClick={() => confirmMutation.mutate(order._id)}
+                            disabled={confirmMutation.isPending}
+                            className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Xác nhận
+                          </button>
+                        )}
+                        {order.status === "confirmed" && (
+                          <button
+                            onClick={() => pickMutation.mutate(order._id)}
+                            disabled={pickMutation.isPending}
+                            className="text-xs px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                            Chuẩn bị
+                          </button>
+                        )}
+                        {order.status === "picking" && (
                           <button
                             onClick={() => handleShipOrder(order)}
                             disabled={shipOrderMutation.isPending}
-                            className="text-xs px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-xs px-3 py-1.5 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                           >
-                            {shipOrderMutation.isPending
-                              ? "Đang gửi..."
-                              : "🚚 Gửi hàng"}
+                            Gửi hàng
                           </button>
                         )}
                       </div>
@@ -439,6 +482,19 @@ export default function AdminOrdersPage() {
                   <span className="text-lg">{formatVND(selectedOrder.total)}</span>
                 </div>
               </div>
+
+              {/* Order Timeline */}
+              {selectedOrder.statusHistory && selectedOrder.statusHistory.length > 0 && (
+                <div>
+                  <div className="text-xs text-slate-500 mb-2">Lịch sử trạng thái</div>
+                  <div className="bg-slate-50 rounded p-3">
+                    <OrderTimeline
+                      statusHistory={selectedOrder.statusHistory}
+                      currentStatus={selectedOrder.status}
+                    />
+                  </div>
+                </div>
+              )}
 
               {selectedOrder.notes && (
                 <div>

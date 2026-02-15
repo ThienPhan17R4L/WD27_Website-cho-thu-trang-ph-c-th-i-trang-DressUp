@@ -17,6 +17,8 @@ export function useProducts(input: ProductListParamsInput) {
       status: input.status,
       tag: input.tag,
       brand: input.brand,
+      priceMin: input.priceMin || undefined,
+      priceMax: input.priceMax || undefined,
     }),
     [input]
   );

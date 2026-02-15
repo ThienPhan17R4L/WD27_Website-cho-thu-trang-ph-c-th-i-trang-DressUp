@@ -1,37 +1,43 @@
 import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import type { StatusHistoryEntry, ShippingAddress } from "@/types/order";
 
 export type Order = {
   _id: string;
   userId: string;
   orderNumber: string;
   items: any[];
-  shippingAddress: any;
+  shippingAddress: ShippingAddress;
   subtotal: number;
   discount: number;
   shippingFee: number;
+  serviceFee: number;
+  couponCode?: string;
+  couponDiscount: number;
+  totalDeposit: number;
   total: number;
   paymentMethod: string;
   paymentStatus: string;
   status: string;
+  statusHistory: StatusHistoryEntry[];
   notes?: string;
-  pickupDeadline?: string; // ISO date string for COD orders (2 hours from creation)
+  pickupDeadline?: string;
+  confirmedAt?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  returnedAt?: string;
+  inspectedAt?: string;
+  actualReturnDate?: string;
+  lateFee: number;
+  depositRefunded: number;
   createdAt: string;
   updatedAt: string;
 };
 
 export type CreateOrderPayload = {
-  shippingAddress: {
-    receiverName: string;
-    receiverPhone: string;
-    line1: string;
-    ward: string;
-    district: string;
-    province: string;
-    country?: string;
-    postalCode?: string;
-  };
-  paymentMethod: "cod" | "vnpay" | "momo" | "zalopay";
+  shippingAddress: ShippingAddress;
+  paymentMethod: "cod" | "vnpay" | "momo" | "zalopay" | "mock";
   notes?: string;
+  couponCode?: string;
 };
 
 export type OrdersListResponse = {
@@ -48,19 +54,39 @@ export const ordersApi = {
   getAll: (params?: { status?: string; page?: number; limit?: number }) =>
     apiGet<OrdersListResponse>("/orders", params),
   getById: (id: string) => apiGet<Order>(`/orders/${id}`),
-  deliverOrder: (id: string) => apiPatch<Order>(`/orders/${id}/deliver`, {}),
-  getActiveRentals: () => apiGet<OrdersListResponse>("/orders/active-rentals"),
+  getActiveRentals: () => apiGet<{ items: Order[] }>("/orders/active-rentals"),
+  getLateFee: (id: string) => apiGet<{ lateFee: number }>(`/orders/${id}/late-fee`),
 
-  // Admin orders (same endpoints but may need admin permissions)
+  // Customer actions
+  deliverOrder: (id: string) => apiPatch<Order>(`/orders/${id}/deliver`, {}),
+  activateRental: (id: string) => apiPatch<Order>(`/orders/${id}/activate`, {}),
+  cancelOrder: (id: string, reason?: string) =>
+    apiPatch<Order>(`/orders/${id}/cancel`, { reason }),
+
+  // Admin/Staff orders
   admin: {
     getAll: (params?: { status?: string; page?: number; limit?: number; search?: string }) =>
       apiGet<OrdersListResponse>("/orders", params),
     getById: (id: string) => apiGet<Order>(`/orders/${id}`),
-    updateStatus: (id: string, status: string) =>
-      apiPatch<Order>(`/orders/${id}/status`, { status }),
     confirmOrder: (id: string) => apiPatch<Order>(`/orders/${id}/confirm`, {}),
+    pickOrder: (id: string) => apiPatch<Order>(`/orders/${id}/pick`, {}),
     shipOrder: (id: string) => apiPatch<Order>(`/orders/${id}/ship`, {}),
-    completeOrder: (id: string, actualReturnDate?: string) =>
-      apiPatch<Order>(`/orders/${id}/complete`, { actualReturnDate }),
+    deliverOrder: (id: string) => apiPatch<Order>(`/orders/${id}/deliver`, {}),
+    activateRental: (id: string) => apiPatch<Order>(`/orders/${id}/activate`, {}),
+    cancelOrder: (id: string, reason?: string) =>
+      apiPatch<Order>(`/orders/${id}/cancel`, { reason }),
+    updateStatus: (id: string, status: string) => {
+      const map: Record<string, () => Promise<Order>> = {
+        confirmed: () => apiPatch<Order>(`/orders/${id}/confirm`, {}),
+        picking: () => apiPatch<Order>(`/orders/${id}/pick`, {}),
+        shipping: () => apiPatch<Order>(`/orders/${id}/ship`, {}),
+        delivered: () => apiPatch<Order>(`/orders/${id}/deliver`, {}),
+        active_rental: () => apiPatch<Order>(`/orders/${id}/activate`, {}),
+        cancelled: () => apiPatch<Order>(`/orders/${id}/cancel`, {}),
+      };
+      const fn = map[status];
+      if (!fn) return Promise.reject(new Error(`Không hỗ trợ chuyển sang trạng thái: ${status}`));
+      return fn();
+    },
   },
 };

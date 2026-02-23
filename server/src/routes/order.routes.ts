@@ -25,6 +25,9 @@ orderRouter.patch("/:id/confirm", requireAdmin, asyncHandler(OrderController.con
 orderRouter.patch("/:id/pick", requireStaffOrAdmin, asyncHandler(OrderController.pickOrder));
 orderRouter.patch("/:id/ship", requireStaffOrAdmin, asyncHandler(OrderController.shipOrder));
 
+// COD: xác nhận thanh toán tại shop + kích hoạt thuê (bỏ qua shipping)
+orderRouter.patch("/:id/activate-cod", requireAdmin, asyncHandler(OrderController.activateCodRental));
+
 // Order status transitions - Customer
 orderRouter.patch("/:id/deliver", asyncHandler(OrderController.deliverOrder));
 orderRouter.patch("/:id/activate", asyncHandler(OrderController.activateRental));
@@ -34,3 +37,6 @@ orderRouter.patch("/:id/cancel", asyncHandler(OrderController.cancelOrder));
 orderRouter.patch("/:id/mark-returned", requireStaffOrAdmin, asyncHandler(OrderController.markReturned));
 orderRouter.patch("/:id/start-inspection", requireStaffOrAdmin, asyncHandler(OrderController.startInspection));
 orderRouter.patch("/:id/complete", requireStaffOrAdmin, asyncHandler(OrderController.completeOrder));
+
+// Return/inspection record
+orderRouter.get("/:id/return", asyncHandler(OrderController.getReturn));

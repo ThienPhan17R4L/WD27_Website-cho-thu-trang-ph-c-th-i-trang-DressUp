@@ -2,6 +2,7 @@ import { HttpError } from "../middlewares/errorHandler";
 import { CartRepository } from "../repositories/cart.repo";
 import { ProductRepository } from "../repositories/product.repo";
 import { Types } from "mongoose";
+import { env } from "../config/env";
 
 const cartRepo = new CartRepository();
 const productRepo = new ProductRepository();
@@ -63,7 +64,8 @@ export const CartService = {
     const subtotal = items.reduce((sum: number, item: any) => sum + item.lineTotal, 0);
     const discount = 0;
     const shippingFee = 0;
-    const grandTotal = subtotal - discount + shippingFee;
+    const serviceFee = Math.round(subtotal * (env.SERVICE_FEE_PERCENT / 100));
+    const grandTotal = subtotal - discount + shippingFee + serviceFee;
 
     return {
       _id: cart._id,
@@ -74,6 +76,7 @@ export const CartService = {
         subtotal,
         discount,
         shippingFee,
+        serviceFee,
         grandTotal,
       },
       createdAt: cart.createdAt,

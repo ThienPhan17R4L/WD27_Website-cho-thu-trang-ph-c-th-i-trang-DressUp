@@ -28,8 +28,16 @@ const TEMPLATES: Record<NotificationType, { subject: string; getMessage: (data: 
     getMessage: (d) => `Đơn hàng #${d.orderNumber} đã quá hạn trả. Vui lòng trả đồ sớm để tránh phí phạt.`,
   },
   RETURN_APPROVED: {
-    subject: "Đã nhận đồ trả - DressUp",
-    getMessage: (d) => `Đồ trả cho đơn hàng #${d.orderNumber} đã được kiểm tra xong.`,
+    subject: "Kiểm tra hàng hoàn tất - DressUp",
+    getMessage: (d) => {
+      let msg = `Đồ trả cho đơn hàng #${d.orderNumber} đã được kiểm tra xong.\n`;
+      if ((d.lateFee as number) > 0)
+        msg += `• Phí trễ hạn: ${(d.lateFee as number).toLocaleString("vi-VN")} VND\n`;
+      if ((d.totalDamageFee as number) > 0)
+        msg += `• Phí hư hại: ${(d.totalDamageFee as number).toLocaleString("vi-VN")} VND\n`;
+      msg += `• Hoàn cọc: ${(d.depositRefundAmount as number).toLocaleString("vi-VN")} VND`;
+      return msg;
+    },
   },
   REFUND_PROCESSED: {
     subject: "Hoàn tiền đặt cọc - DressUp",

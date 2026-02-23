@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { PaginationBar } from "@/components/common/PaginationBar";
@@ -130,8 +130,10 @@ function EmptyState({ activeTab }: { activeTab: TabStatus }) {
 }
 
 export default function OrdersPage() {
-  const [activeTab, setActiveTab] = useState<TabStatus>("all");
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const activeTab = (searchParams.get("tab") as TabStatus) || "all";
+  const page = parseInt(searchParams.get("page") || "1", 10);
   const limit = 10;
 
   // Get status filter for API
@@ -143,10 +145,12 @@ export default function OrdersPage() {
     status: statusFilter,
   });
 
-  // Reset page when changing tabs
   function handleTabChange(tab: TabStatus) {
-    setActiveTab(tab);
-    setPage(1);
+    setSearchParams({ tab, page: "1" });
+  }
+
+  function handlePageChange(p: number) {
+    setSearchParams({ tab: activeTab, page: String(p) });
   }
 
   const orders = data?.items ?? [];
@@ -230,7 +234,7 @@ export default function OrdersPage() {
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-8">
-              <PaginationBar page={page} totalPages={totalPages} onChange={setPage} />
+              <PaginationBar page={page} totalPages={totalPages} onChange={handlePageChange} />
             </div>
           )}
         </div>

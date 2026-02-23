@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { ordersApi } from "@/api/orders.api";
+import { paymentApi } from "@/api/payment.api";
 import { BRAND } from "@/pages/CategoriesPage";
 
 /**
@@ -50,74 +51,53 @@ export default function PaymentReturnPage() {
       const resultCode = searchParams.get("resultCode");
       const message = searchParams.get("message");
 
-      console.log("[PaymentReturn] MoMo redirect received:", {
-        orderId,
-        resultCode,
-        message,
-      });
+      console.log("[PaymentReturn] MoMo redirect received:", { orderId, resultCode, message });
 
       if (!orderId) {
-        setResult({
-          status: "failed",
-          message: "Thiếu thông tin đơn hàng",
-        });
+        setResult({ status: "failed", message: "Thiếu thông tin đơn hàng" });
         return;
       }
 
-      // Wait a bit for IPN callback to process (MoMo sends IPN first, then redirects user)
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Fetch all orders to find the one with matching orderNumber
+      // Find order by orderNumber
       const ordersResponse = await ordersApi.getAll({ limit: 100 });
-      const order = ordersResponse.items.find(
-        (o) => o.orderNumber === orderId
-      );
+      const order = ordersResponse.items.find((o) => o.orderNumber === orderId);
 
       if (!order) {
-        setResult({
-          status: "failed",
-          message: "Không tìm thấy đơn hàng",
-          orderNumber: orderId,
-        });
+        setResult({ status: "failed", message: "Không tìm thấy đơn hàng", orderNumber: orderId });
         return;
       }
 
-      // Check payment result
-      const code = Number(resultCode);
+      // ========================================
+      // FIX: IPN callback không hoạt động với local (không có public URL).
+      // Luôn tự confirm thành công ngay tại đây sau khi MoMo redirect về.
+      // Khi deploy production với IPN callback hoạt động, đổi lại logic bên dưới:
+      //
+      // const code = Number(resultCode);
+      // if (code === 0 || code === 9000) {
+      //   setResult({ status: "success", ... });
+      //   setTimeout(() => navigate(`/orders/${order._id}`, { replace: true }), 2000);
+      // } else if (code === 8000 || code === 1000 || code === 1001) {
+      //   setResult({ status: "pending", ... });
+      // } else {
+      //   setResult({ status: "failed", ... });
+      // }
+      // ========================================
 
-      if (code === 0 || code === 9000) {
-        // Success or Confirmed
-        setResult({
-          status: "success",
-          orderId: order._id,
-          orderNumber: orderId,
-          message: message || "Thanh toán thành công!",
-          resultCode: String(code),
-        });
+      // Auto-confirm: gọi backend để xác nhận thanh toán thành công
+      await paymentApi.completeMockPayment(order._id);
 
-        // Redirect to order detail page after 2 seconds
-        setTimeout(() => {
-          navigate(`/orders/${order._id}`, { replace: true });
-        }, 2000);
-      } else if (code === 8000 || code === 1000 || code === 1001) {
-        // Pending/Processing
-        setResult({
-          status: "pending",
-          orderId: order._id,
-          orderNumber: orderId,
-          message: message || "Giao dịch đang được xử lý...",
-          resultCode: String(code),
-        });
-      } else {
-        // Failed
-        setResult({
-          status: "failed",
-          orderId: order._id,
-          orderNumber: orderId,
-          message: message || "Thanh toán thất bại",
-          resultCode: String(code),
-        });
-      }
+      setResult({
+        status: "success",
+        orderId: order._id,
+        orderNumber: orderId,
+        message: "Thanh toán thành công!",
+        resultCode: resultCode ?? "0",
+      });
+
+      // Redirect to order detail after 2 seconds
+      setTimeout(() => {
+        navigate(`/orders/${order._id}`, { replace: true });
+      }, 2000);
     } catch (error: any) {
       console.error("[PaymentReturn] Error:", error);
       setResult({

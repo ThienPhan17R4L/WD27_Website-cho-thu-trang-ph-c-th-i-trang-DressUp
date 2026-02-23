@@ -17,7 +17,7 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   draft: ["pending_payment", "cancelled"],
-  pending_payment: ["confirmed", "cancelled"],
+  pending_payment: ["confirmed", "active_rental", "cancelled"],
   confirmed: ["picking", "cancelled"],
   picking: ["shipping", "cancelled"],
   shipping: ["delivered"],

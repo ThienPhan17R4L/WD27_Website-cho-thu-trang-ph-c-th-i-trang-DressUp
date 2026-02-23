@@ -1,12 +1,9 @@
 import { Router } from "express";
 import { ProductController } from "../controllers/product.controller";
 import { asyncHandler } from "../middlewares/asyncHandler";
-import { validateBody, validateQuery } from "../middlewares/validate";
+import { validateBody } from "../middlewares/validate";
 import {
   createProductSchema,
-  listProductsSchema,
-  productIdParamSchema,
-  productSlugParamSchema,
   updateProductSchema,
 } from "../schemas/product.shema";
 
@@ -43,4 +40,4 @@ productRouter.get(
  */
 productRouter.get("/:id", asyncHandler(ProductController.getById));
 productRouter.patch("/:id", validateBody(updateProductSchema), asyncHandler(ProductController.update));
-productRouter.delete("/:id", validateBody(productIdParamSchema), asyncHandler(ProductController.remove));
+productRouter.delete("/:id", asyncHandler(ProductController.remove));

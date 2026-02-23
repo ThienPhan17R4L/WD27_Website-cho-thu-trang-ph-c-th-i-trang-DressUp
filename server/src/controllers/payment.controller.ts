@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { MoMoService } from "../services/momo.service";
 import { OrderService } from "../services/order.service";
+import { availabilityService } from "../services/availability.service";
 import { OrderModel } from "../models/Order";
 import { env } from "../config/env";
 
@@ -155,14 +156,18 @@ export const PaymentController = {
         };
         order.confirmedAt = new Date();
 
-        // Add status history
-        order.statusHistory.push({
-          status: "confirmed",
-          timestamp: new Date(),
-          notes: `Payment confirmed via MoMo (TransID: ${data.transId})`,
-        });
+        // Add status history only if not already confirmed (prevent duplicate entries)
+        if (order.status !== "confirmed") {
+          order.statusHistory.push({
+            status: "confirmed",
+            timestamp: new Date(),
+            notes: `Payment confirmed via MoMo (TransID: ${data.transId})`,
+          });
+        }
 
         await order.save();
+        // Confirm rental reservations now that payment is complete
+        await availabilityService.confirmByOrder(String(order._id));
         console.log(`[Payment] ✅ Order ${order.orderNumber} SAVED with status: ${order.status}, payment: ${order.paymentStatus}`);
         console.log(`[Payment] ✓ Payment successful - TransID: ${data.transId}`);
       } else if (resultCode === MOMO_RESULT_CODES.PENDING || resultCode === MOMO_RESULT_CODES.PROCESSING) {
@@ -210,6 +215,8 @@ export const PaymentController = {
         };
 
         await order.save();
+        // Release any reservations held for this order
+        await availabilityService.releaseByOrder(String(order._id));
         console.log(`[Payment] ✗ Order ${order.orderNumber} saved as FAILED`);
       }
 
@@ -327,14 +334,18 @@ export const PaymentController = {
       };
       order.confirmedAt = new Date();
 
-      // Add status history (same as real MoMo callback)
-      order.statusHistory.push({
-        status: "confirmed",
-        timestamp: new Date(),
-        notes: `Payment confirmed via MOCK MoMo (TransID: ${mockTransId})`,
-      });
+      // Add status history only if not already confirmed (prevent duplicate entries)
+      if (order.status !== "confirmed") {
+        order.statusHistory.push({
+          status: "confirmed",
+          timestamp: new Date(),
+          notes: `Payment confirmed via MOCK MoMo (TransID: ${mockTransId})`,
+        });
+      }
 
       await order.save();
+      // Confirm rental reservations now that payment is complete
+      await availabilityService.confirmByOrder(String(order._id));
 
       console.log(`[Payment] ✅ MOCK payment completed for order ${order.orderNumber}`);
       console.log(`[Payment] MOCK TransID: ${mockTransId}`);
@@ -420,6 +431,8 @@ export const PaymentController = {
       };
 
       await order.save();
+      // Release any reservations held for this order
+      await availabilityService.releaseByOrder(String(order._id));
 
       console.log(`[Payment] ❌ MOCK payment failed for order ${order.orderNumber}`);
       console.log(`[Payment] MOCK TransID: ${mockTransId}, ResultCode: 1006 (Canceled)`);

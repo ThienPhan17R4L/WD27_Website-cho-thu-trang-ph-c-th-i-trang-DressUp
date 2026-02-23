@@ -131,7 +131,6 @@ export default function CheckoutPage() {
         try {
           showNotification("info", "Đang chuyển đến cổng thanh toán MoMo...");
 
-          // Call payment creation API
           const payment = await apiPost<{ payUrl: string; qrCodeUrl: string; deeplink: string }>(
             "/payment/momo/create",
             { orderId: order._id }
@@ -351,6 +350,15 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
+                  {totals.serviceFee > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Phí dịch vụ (5%)</span>
+                      <span className="font-semibold">
+                        {formatVND(totals.serviceFee)}
+                      </span>
+                    </div>
+                  )}
+
                   {totalDeposit > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-orange-600 font-medium">
@@ -364,22 +372,19 @@ export default function CheckoutPage() {
 
                   <div className="pt-4 border-t border-slate-300 flex items-center justify-between">
                     <span className="text-slate-900 font-semibold">
-                      {form.paymentMethod === "cod" ? "Total (COD)" : "Total to Pay Now"}
+                      {form.paymentMethod === "cod" ? "Tổng thanh toán khi nhận hàng" : "Tổng thanh toán ngay"}
                     </span>
                     <span
                       className="text-xl font-semibold"
                       style={{ color: ACCENT }}
                     >
-                      {form.paymentMethod === "cod"
-                        ? formatVND(totals.grandTotal)
-                        : formatVND(totals.grandTotal + totalDeposit)
-                      }
+                      {formatVND(totals.grandTotal + totalDeposit)}
                     </span>
                   </div>
 
-                  {form.paymentMethod !== "cod" && totalDeposit > 0 && (
+                  {totalDeposit > 0 && (
                     <div className="mt-2 text-xs text-slate-600">
-                      * Online payment includes rental fee and deposit
+                      * Bao gồm tiền thuê và tiền cọc hoàn trả
                     </div>
                   )}
                 </div>

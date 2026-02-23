@@ -64,11 +64,13 @@ export const OrderController = {
     res.json(order);
   },
 
-  /** PATCH /orders/:id/deliver - Client xác nhận đã nhận hàng */
+  /** PATCH /orders/:id/deliver - Client xác nhận đã nhận hàng / Admin đánh dấu đã giao */
   async deliverOrder(req: Request, res: Response) {
     const id = String(req.params.id);
-    const userId = (req as any).user!.id as string;
-    const order = await OrderService.deliverOrder(id, userId);
+    const user = (req as any).user!;
+    const userId = user.id as string;
+    const isStaffOrAdmin = user.roles?.includes("admin") || user.roles?.includes("staff");
+    const order = await OrderService.deliverOrder(id, userId, isStaffOrAdmin);
     res.json(order);
   },
 
@@ -77,6 +79,14 @@ export const OrderController = {
     const id = String(req.params.id);
     const userId = (req as any).user!.id as string;
     const order = await OrderService.activateRental(id, userId);
+    res.json(order);
+  },
+
+  /** PATCH /orders/:id/activate-cod - COD: xác nhận thanh toán + kích hoạt thuê tại shop */
+  async activateCodRental(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const adminId = (req as any).user!.id;
+    const order = await OrderService.activateCodRental(id, adminId);
     res.json(order);
   },
 
@@ -106,21 +116,32 @@ export const OrderController = {
   /** PATCH /orders/:id/mark-returned - Mark order as returned */
   async markReturned(req: Request, res: Response) {
     const id = String(req.params.id);
-    const order = await OrderService.markReturned(id);
+    const staffId = (req as any).user!.id as string;
+    const order = await OrderService.markReturned(id, staffId);
     res.json(order);
   },
 
   /** PATCH /orders/:id/start-inspection - Start inspection */
   async startInspection(req: Request, res: Response) {
     const id = String(req.params.id);
-    const order = await OrderService.startInspection(id);
+    const staffId = (req as any).user!.id as string;
+    const order = await OrderService.startInspection(id, staffId);
     res.json(order);
   },
 
-  /** PATCH /orders/:id/complete - Complete order */
+  /** PATCH /orders/:id/complete - Complete inspection with damage assessment */
   async completeOrder(req: Request, res: Response) {
     const id = String(req.params.id);
-    const order = await OrderService.completeOrder(id);
-    res.json(order);
+    const staffId = (req as any).user!.id as string;
+    const { items = [], notes } = req.body;
+    const result = await OrderService.completeInspection(id, staffId, { items, notes });
+    res.json(result);
+  },
+
+  /** GET /orders/:id/return - Get return/inspection record */
+  async getReturn(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const returnRecord = await OrderService.getReturnByOrder(id);
+    res.json(returnRecord || null);
   },
 };

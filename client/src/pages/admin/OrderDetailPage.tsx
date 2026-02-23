@@ -1,7 +1,8 @@
 import { useParams, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Container } from "@/components/common/Container";
-import { ordersApi, type Order } from "@/api/orders.api";
+import { ordersApi, type Order, type InspectionItemPayload } from "@/api/orders.api";
 import { formatVND } from "@/utils/formatCurrency";
 import { useNotification } from "@/contexts/NotificationContext";
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/types/order";
@@ -26,6 +27,13 @@ export default function AdminOrderDetailPage() {
     enabled: !!id,
   });
 
+  // Damage percentage map for auto-calculating inspection damage fee
+  const DAMAGE_PERCENT: Record<string, number> = {
+    new: 0, good: 0,
+    damage_20: 20, damage_40: 40, damage_60: 60, damage_80: 80,
+    destroyed: 100,
+  };
+
   // Mutations
   const confirmMutation = useMutation({
     mutationFn: (orderId: string) => ordersApi.admin.confirmOrder(orderId),
@@ -36,6 +44,18 @@ export default function AdminOrderDetailPage() {
     },
     onError: (error: any) => {
       showNotification("error", error.message || "Xác nhận thất bại");
+    },
+  });
+
+  const activateCodMutation = useMutation({
+    mutationFn: (orderId: string) => ordersApi.admin.activateCodRental(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-order", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      showNotification("success", "Đã xác nhận thanh toán & kích hoạt thuê tại shop!");
+    },
+    onError: (error: any) => {
+      showNotification("error", error.message || "Thao tác thất bại");
     },
   });
 
@@ -111,17 +131,71 @@ export default function AdminOrderDetailPage() {
     },
   });
 
-  const completeOrderMutation = useMutation({
-    mutationFn: (orderId: string) => ordersApi.admin.completeOrder(orderId),
+  // Inspection form state
+  const [inspectionItems, setInspectionItems] = useState<
+    { conditionAfter: string; damageNotes: string; damageFee: number }[]
+  >([]);
+  const [inspectionNotes, setInspectionNotes] = useState("");
+
+  useEffect(() => {
+    if (order?.items?.length) {
+      setInspectionItems(
+        order.items.map(() => ({ conditionAfter: "good", damageNotes: "", damageFee: 0 }))
+      );
+    }
+  }, [order?.items?.length]);
+
+  function updateInspectionItem(idx: number, field: string, value: string | number) {
+    setInspectionItems((prev) =>
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        const updated = { ...item, [field]: value };
+        // Auto-calculate damage fee when condition changes
+        if (field === "conditionAfter" && typeof value === "string") {
+          const pct = DAMAGE_PERCENT[value] ?? 0;
+          const orderItem = order?.items?.[idx];
+          updated.damageFee = pct > 0 && orderItem
+            ? Math.round((orderItem.deposit || 0) * (orderItem.quantity || 1) * pct / 100)
+            : 0;
+          if (pct === 0) updated.damageNotes = "";
+        }
+        return updated;
+      })
+    );
+  }
+
+  const totalDamageFee = inspectionItems.reduce((sum, item) => sum + (item.damageFee || 0), 0);
+  const depositRefundAmount = Math.max(
+    0,
+    (order?.totalDeposit || 0) - (order?.lateFee || 0) - totalDamageFee
+  );
+
+  const completeInspectionMutation = useMutation({
+    mutationFn: (orderId: string) =>
+      ordersApi.admin.completeInspection(orderId, {
+        items: inspectionItems.map((item, idx) => ({
+          orderItemIndex: idx,
+          conditionAfter: item.conditionAfter,
+          damageNotes: item.damageNotes || undefined,
+          damageFee: item.damageFee || 0,
+        })),
+        notes: inspectionNotes || undefined,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-order", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
-      showNotification("success", "Đã hoàn thành đơn!");
+      showNotification("success", "Đã hoàn thành kiểm tra!");
     },
     onError: (error: any) => {
       showNotification("error", error.message || "Thao tác thất bại");
     },
   });
+
+  function handleCompleteInspection() {
+    if (confirm(`Xác nhận hoàn thành kiểm tra đơn ${order?.orderNumber}?`)) {
+      completeInspectionMutation.mutate(id!);
+    }
+  }
 
   const cancelOrderMutation = useMutation({
     mutationFn: ({ orderId, reason }: { orderId: string; reason?: string }) =>
@@ -245,7 +319,16 @@ export default function AdminOrderDetailPage() {
         <div className="py-6">
           {/* Action Buttons */}
           <div className="mb-6 flex flex-wrap gap-3">
-            {(order.status === "pending" || order.status === "pending_payment") && (
+            {(order.status === "pending" || order.status === "pending_payment") && order.paymentMethod === "cod" && (
+              <button
+                onClick={() => activateCodMutation.mutate(id!)}
+                disabled={activateCodMutation.isPending}
+                className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+              >
+                Xác nhận thanh toán & Kích hoạt thuê
+              </button>
+            )}
+            {(order.status === "pending" || order.status === "pending_payment") && order.paymentMethod !== "cod" && (
               <button
                 onClick={() => confirmMutation.mutate(id!)}
                 disabled={confirmMutation.isPending}
@@ -308,16 +391,8 @@ export default function AdminOrderDetailPage() {
                 Bắt đầu kiểm tra
               </button>
             )}
-            {order.status === "inspecting" && (
-              <button
-                onClick={() => completeOrderMutation.mutate(id!)}
-                disabled={completeOrderMutation.isPending}
-                className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
-              >
-                Hoàn thành đơn
-              </button>
-            )}
-            {order.status !== "cancelled" && order.status !== "completed" && (
+            {/* Inspection form replaces the button — see section below */}
+            {["draft", "pending_payment", "pending", "confirmed", "picking", "inspecting"].includes(order.status) && (
               <button
                 onClick={handleCancelOrder}
                 disabled={cancelOrderMutation.isPending}
@@ -327,6 +402,152 @@ export default function AdminOrderDetailPage() {
               </button>
             )}
           </div>
+
+          {/* ── Inspection form (visible only when inspecting) ── */}
+          {order.status === "inspecting" && (
+            <div className="mb-6 border border-amber-300 rounded-lg p-6 bg-amber-50">
+              <h2 className="text-lg font-semibold text-slate-900 mb-1">Kiểm tra hàng hoàn trả</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                Đánh giá tình trạng từng sản phẩm, ghi nhận hư hại (nếu có) để xác định phí đền bù và hoàn cọc.
+              </p>
+
+              {/* Late fee banner */}
+              {(order.lateFee || 0) > 0 && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <span className="text-base">⏰</span>
+                  <span>
+                    Khách trả muộn — <strong>phí trễ hạn: {formatVND(order.lateFee)}</strong>
+                  </span>
+                </div>
+              )}
+
+              {/* Per-item damage assessment */}
+              <div className="space-y-3 mb-5">
+                {order.items?.map((item: any, idx: number) => (
+                  <div key={idx} className="rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-14 h-14 object-cover rounded border border-slate-200 shrink-0"
+                        />
+                      )}
+                      <div>
+                        <div className="font-medium text-slate-900">{item.name}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {item.variant?.size && `Size: ${item.variant.size}`}
+                          {item.variant?.color && ` • ${item.variant.color}`}
+                          {` • SL: ${item.quantity}`}
+                        </div>
+                      </div>
+                    </div>
+                    {(() => {
+                      const condition = inspectionItems[idx]?.conditionAfter || "good";
+                      const pct = DAMAGE_PERCENT[condition] ?? 0;
+                      const isDamaged = pct > 0;
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                              Tình trạng sau khi trả
+                            </label>
+                            <select
+                              value={condition}
+                              onChange={(e) => updateInspectionItem(idx, "conditionAfter", e.target.value)}
+                              className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            >
+                              <option value="new">Mới (như ban đầu)</option>
+                              <option value="good">Tốt (không hư hại)</option>
+                              <option value="damage_20">Hư hại 20%</option>
+                              <option value="damage_40">Hư hại 40%</option>
+                              <option value="damage_60">Hư hại 60%</option>
+                              <option value="damage_80">Hư hại 80%</option>
+                              <option value="destroyed">Hỏng hoàn toàn (100%)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                              Mô tả hư hại
+                            </label>
+                            <input
+                              type="text"
+                              placeholder={isDamaged ? "VD: rách nhẹ ở gấu váy..." : "Không có hư hại"}
+                              value={inspectionItems[idx]?.damageNotes || ""}
+                              disabled={!isDamaged}
+                              onChange={(e) => updateInspectionItem(idx, "damageNotes", e.target.value)}
+                              className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:bg-slate-50 disabled:text-slate-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1">
+                              Phí đền bù hư hại (tự động)
+                            </label>
+                            {isDamaged ? (
+                              <div className="w-full text-sm border border-amber-300 bg-amber-50 rounded px-2 py-1.5 font-medium text-amber-800">
+                                {formatVND(inspectionItems[idx]?.damageFee || 0)}
+                                <span className="ml-1 text-xs text-amber-600">({pct}% tiền cọc)</span>
+                              </div>
+                            ) : (
+                              <div className="w-full text-sm border border-slate-200 bg-slate-50 rounded px-2 py-1.5 text-slate-400">
+                                Không có phí
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+
+              {/* Summary */}
+              <div className="rounded-lg border border-amber-200 bg-white p-4 text-sm space-y-2 mb-4">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Tiền đặt cọc</span>
+                  <span className="font-medium">{formatVND(order.totalDeposit)}</span>
+                </div>
+                {(order.lateFee || 0) > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Trừ phí trễ hạn</span>
+                    <span>− {formatVND(order.lateFee)}</span>
+                  </div>
+                )}
+                {totalDamageFee > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>Trừ phí hư hại</span>
+                    <span>− {formatVND(totalDamageFee)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-semibold text-base pt-2 border-t border-slate-200">
+                  <span>Hoàn cọc cho khách</span>
+                  <span className="text-green-600">{formatVND(depositRefundAmount)}</span>
+                </div>
+              </div>
+
+              {/* General notes */}
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Ghi chú kiểm tra (không bắt buộc)
+                </label>
+                <textarea
+                  value={inspectionNotes}
+                  onChange={(e) => setInspectionNotes(e.target.value)}
+                  placeholder="Ghi chú thêm về quá trình kiểm tra..."
+                  rows={2}
+                  className="w-full text-sm border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                />
+              </div>
+
+              <button
+                onClick={handleCompleteInspection}
+                disabled={completeInspectionMutation.isPending}
+                className="px-6 py-2.5 rounded-md bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
+              >
+                {completeInspectionMutation.isPending ? "Đang xử lý..." : "✓ Hoàn thành kiểm tra"}
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content */}
@@ -486,9 +707,9 @@ export default function AdminOrderDetailPage() {
                     </div>
                   )}
                   <div className="flex justify-between pt-3 border-t border-slate-200 text-base">
-                    <span className="font-semibold text-slate-900">Tổng cộng</span>
+                    <span className="font-semibold text-slate-900">Tổng thanh toán</span>
                     <span className="font-bold text-lg" style={{ color: BRAND.blushRose }}>
-                      {formatVND(order.total)}
+                      {formatVND(order.total + (order.totalDeposit || 0))}
                     </span>
                   </div>
                 </div>

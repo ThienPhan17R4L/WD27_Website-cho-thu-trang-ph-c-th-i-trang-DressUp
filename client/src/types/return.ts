@@ -16,6 +16,7 @@ export type Return = {
   userId: string;
   returnMethod: "in_store" | "shipping";
   trackingNumber?: string;
+  returnedAt?: string;
   status: ReturnStatus;
   items: ReturnItem[];
   totalDamageFee: number;

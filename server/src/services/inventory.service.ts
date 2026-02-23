@@ -291,8 +291,12 @@ export const InventoryService = {
 
             if (inventory) {
               // Variant has inventory record
-              // Real available = qtyAvailable in DB - reserved in active orders
-              const realAvailable = Math.max(0, (inventory.qtyAvailable || 0) - reservedQty);
+              // Real available = physical stock not in cleaning/repair/lost - reserved by active orders
+              const physicalAvailable = (inventory.qtyTotal || 0)
+                - (inventory.qtyInCleaning || 0)
+                - (inventory.qtyInRepair || 0)
+                - (inventory.qtyLost || 0);
+              const realAvailable = Math.max(0, physicalAvailable - reservedQty);
 
               return {
                 _id: inventory._id.toString(),

@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch } from "@/lib/api";
 import type { StatusHistoryEntry, ShippingAddress } from "@/types/order";
+import type { Return as ReturnRecord } from "@/types/return";
 
 export type Order = {
   _id: string;
@@ -40,6 +41,20 @@ export type CreateOrderPayload = {
   couponCode?: string;
 };
 
+export type InspectionItemPayload = {
+  orderItemIndex: number;
+  conditionAfter: string;
+  damageNotes?: string;
+  damageFee: number;
+};
+
+export type InspectionPayload = {
+  items: InspectionItemPayload[];
+  notes?: string;
+};
+
+export type { ReturnRecord };
+
 export type OrdersListResponse = {
   items: Order[];
   page: number;
@@ -56,6 +71,7 @@ export const ordersApi = {
   getById: (id: string) => apiGet<Order>(`/orders/${id}`),
   getActiveRentals: () => apiGet<{ items: Order[] }>("/orders/active-rentals"),
   getLateFee: (id: string) => apiGet<{ lateFee: number }>(`/orders/${id}/late-fee`),
+  getReturn: (id: string) => apiGet<ReturnRecord | null>(`/orders/${id}/return`),
 
   // Customer actions
   deliverOrder: (id: string) => apiPatch<Order>(`/orders/${id}/deliver`, {}),
@@ -75,9 +91,12 @@ export const ordersApi = {
     activateRental: (id: string) => apiPatch<Order>(`/orders/${id}/activate`, {}),
     cancelOrder: (id: string, reason?: string) =>
       apiPatch<Order>(`/orders/${id}/cancel`, { reason }),
+    activateCodRental: (id: string) => apiPatch<Order>(`/orders/${id}/activate-cod`, {}),
     markReturned: (id: string) => apiPatch<Order>(`/orders/${id}/mark-returned`, {}),
     startInspection: (id: string) => apiPatch<Order>(`/orders/${id}/start-inspection`, {}),
-    completeOrder: (id: string) => apiPatch<Order>(`/orders/${id}/complete`, {}),
+    completeInspection: (id: string, payload: InspectionPayload) =>
+      apiPatch<{ order: Order; returnRecord: ReturnRecord }>(`/orders/${id}/complete`, payload),
+    getReturn: (id: string) => apiGet<ReturnRecord | null>(`/orders/${id}/return`),
     updateStatus: (id: string, status: string) => {
       const map: Record<string, () => Promise<Order>> = {
         confirmed: () => apiPatch<Order>(`/orders/${id}/confirm`, {}),

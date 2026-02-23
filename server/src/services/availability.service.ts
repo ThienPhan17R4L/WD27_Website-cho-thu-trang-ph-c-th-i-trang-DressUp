@@ -3,6 +3,7 @@ import { InventoryModel } from "../models/Inventory";
 import { env } from "../config/env";
 import { BadRequestError } from "../utils/errors";
 import { Types } from "mongoose";
+import { OrderModel } from "../models/Order";
 
 function minutesFromNow(min: number) {
   return new Date(Date.now() + min * 60_000);
@@ -69,7 +70,10 @@ export const availabilityService = {
   },
 
   /**
-   * Count overlapping reservations for a variant in a date range
+   * Count overlapping reservations for a variant in a date range.
+   * "hold" reservations are always counted (TTL-based, auto-expire).
+   * "confirmed" reservations are only counted if the linked order is actually paid
+   * (paymentStatus != "pending"), to avoid zombie reservations from abandoned orders.
    */
   async countOverlappingReservations(
     productId: string,
@@ -88,6 +92,30 @@ export const availabilityService = {
           status: { $in: ["hold", "confirmed"] },
           startDate: { $lt: endDate },
           endDate: { $gt: startDate },
+        },
+      },
+      {
+        $lookup: {
+          from: "orders",
+          localField: "orderId",
+          foreignField: "_id",
+          as: "linkedOrder",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            // "hold" reservations (TTL-based) — always count
+            { status: "hold" },
+            // "confirmed" only if order is actually paid (not abandoned pending_payment)
+            {
+              status: "confirmed",
+              $or: [
+                { linkedOrder: { $size: 0 } },                      // legacy: no orderId
+                { "linkedOrder.0.paymentStatus": { $ne: "pending" } }, // order is paid
+              ],
+            },
+          ],
         },
       },
       {
@@ -111,7 +139,8 @@ export const availabilityService = {
     color: string | undefined,
     startDate: Date,
     endDate: Date,
-    quantity: number = 1
+    quantity: number = 1,
+    orderId?: string
   ) {
     // First check availability
     const { available } = await this.checkAvailability(
@@ -124,6 +153,7 @@ export const availabilityService = {
     return RentalReservationModel.create({
       productId,
       variantKey: { size, color },
+      ...(orderId ? { orderId } : {}),
       userId,
       startDate,
       endDate,
@@ -153,6 +183,19 @@ export const availabilityService = {
     await RentalReservationModel.updateOne(
       { _id: reservationId },
       { $set: { status: "released" } }
+    );
+  },
+
+  /**
+   * Confirm all hold reservations for an order (called after payment success)
+   */
+  async confirmByOrder(orderId: string) {
+    await RentalReservationModel.updateMany(
+      { orderId: new Types.ObjectId(orderId), status: "hold" },
+      {
+        $set: { status: "confirmed" },
+        $unset: { expiresAt: 1 },
+      }
     );
   },
 

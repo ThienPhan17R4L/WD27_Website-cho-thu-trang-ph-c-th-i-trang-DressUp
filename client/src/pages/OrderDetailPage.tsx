@@ -8,6 +8,14 @@ import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from "@/types/order";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { BRAND } from "@/pages/CategoriesPage";
 
+const CONDITION_LABELS: Record<string, string> = {
+  new: "Mới (như ban đầu)",
+  good: "Tốt (không hư hại)",
+  minor_damage: "Hư hại nhẹ",
+  major_damage: "Hư hại nặng",
+  destroyed: "Hỏng hoàn toàn",
+};
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -18,6 +26,13 @@ export default function OrderDetailPage() {
     queryKey: ["order", id],
     queryFn: () => ordersApi.getById(id!),
     enabled: !!id,
+  });
+
+  // Fetch return/inspection record when order is inspecting or completed
+  const { data: returnRecord } = useQuery({
+    queryKey: ["order-return", id],
+    queryFn: () => ordersApi.getReturn(id!),
+    enabled: !!id && ["inspecting", "completed"].includes(order?.status || ""),
   });
 
   // Deliver order mutation (customer confirms receipt)
@@ -250,6 +265,92 @@ export default function OrderDetailPage() {
                 </div>
               </div>
 
+              {/* Inspection / damage report */}
+              {returnRecord && (
+                <div className="border border-amber-200 rounded-lg p-6 bg-amber-50">
+                  <h2 className="text-lg font-semibold text-slate-900 mb-1">
+                    Kết quả kiểm tra hàng trả
+                  </h2>
+                  {returnRecord.inspectedAt && (
+                    <p className="text-xs text-slate-500 mb-4">
+                      Kiểm tra lúc{" "}
+                      {new Date(returnRecord.inspectedAt).toLocaleString("vi-VN", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
+
+                  {/* Per-item results */}
+                  {returnRecord.items?.length > 0 && (
+                    <div className="space-y-3 mb-4">
+                      {returnRecord.items.map((ri, idx) => {
+                        const orderItem = order.items?.[ri.orderItemIndex];
+                        return (
+                          <div key={idx} className="rounded-lg border border-slate-200 bg-white p-3 text-sm">
+                            <div className="font-medium text-slate-900 mb-1">
+                              {orderItem?.name || `Sản phẩm #${ri.orderItemIndex + 1}`}
+                              {orderItem?.variant?.size && (
+                                <span className="ml-2 text-xs text-slate-500">
+                                  Size {orderItem.variant.size}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600">
+                              <span>
+                                Tình trạng:{" "}
+                                <strong>{CONDITION_LABELS[ri.conditionAfter] || ri.conditionAfter}</strong>
+                              </span>
+                              {ri.damageNotes && (
+                                <span>Ghi chú: <em>{ri.damageNotes}</em></span>
+                              )}
+                              {ri.damageFee > 0 && (
+                                <span className="text-red-600 font-medium">
+                                  Phí đền bù: {formatVND(ri.damageFee)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Financial summary */}
+                  <div className="rounded-lg border border-amber-200 bg-white p-4 text-sm space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Tiền đặt cọc</span>
+                      <span className="font-medium">{formatVND(order.totalDeposit)}</span>
+                    </div>
+                    {(returnRecord.lateFee || 0) > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>Phí trễ hạn</span>
+                        <span>− {formatVND(returnRecord.lateFee)}</span>
+                      </div>
+                    )}
+                    {(returnRecord.totalDamageFee || 0) > 0 && (
+                      <div className="flex justify-between text-red-600">
+                        <span>Phí đền bù hư hại</span>
+                        <span>− {formatVND(returnRecord.totalDamageFee)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold text-base pt-2 border-t border-slate-200">
+                      <span>Hoàn cọc</span>
+                      <span
+                        className={
+                          returnRecord.depositRefundAmount > 0 ? "text-green-600" : "text-slate-900"
+                        }
+                      >
+                        {formatVND(returnRecord.depositRefundAmount)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Status History Timeline */}
               {order.statusHistory && order.statusHistory.length > 0 && (
                 <div className="border border-slate-200 rounded-lg p-6 bg-white">
@@ -333,9 +434,9 @@ export default function OrderDetailPage() {
                     </div>
                   )}
                   <div className="flex justify-between pt-3 border-t border-slate-200 text-base">
-                    <span className="font-semibold text-slate-900">Tổng cộng</span>
+                    <span className="font-semibold text-slate-900">Tổng thanh toán</span>
                     <span className="font-bold text-lg" style={{ color: BRAND.blushRose }}>
-                      {formatVND(order.total)}
+                      {formatVND(order.total + (order.totalDeposit || 0))}
                     </span>
                   </div>
                 </div>

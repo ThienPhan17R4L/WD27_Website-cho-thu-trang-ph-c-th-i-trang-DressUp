@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Container } from "@/components/common/Container";
 import { PaginationBar } from "@/components/common/PaginationBar";
@@ -31,11 +31,12 @@ const paymentStatusLabels: Record<string, string> = {
 };
 
 export default function AdminOrdersPage() {
-  // UI state
-  const [activeTab, setActiveTab] = useState<TabStatus>("all");
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [pageSize, setPageSize] = useState(10);
-  const [search, setSearch] = useState("");
+
+  const activeTab = (searchParams.get("tab") as TabStatus) || "all";
+  const page = parseInt(searchParams.get("page") || "1", 10);
+  const search = searchParams.get("search") || "";
 
   // Get status filter for API
   const statusFilter = TABS.find((t) => t.key === activeTab)?.statusFilter;
@@ -55,15 +56,16 @@ export default function AdminOrdersPage() {
   const orders = data?.items || [];
   const totalPages = data?.totalPages || 1;
 
-  // Reset page when changing tabs or search
   function handleTabChange(tab: TabStatus) {
-    setActiveTab(tab);
-    setPage(1);
+    setSearchParams({ tab, page: "1", ...(search && { search }) });
   }
 
   function handleSearchChange(value: string) {
-    setSearch(value);
-    setPage(1);
+    setSearchParams({ tab: activeTab, page: "1", ...(value && { search: value }) });
+  }
+
+  function handlePageChange(p: number) {
+    setSearchParams({ tab: activeTab, page: String(p), ...(search && { search }) });
   }
 
   return (
@@ -95,7 +97,7 @@ export default function AdminOrdersPage() {
               value={String(pageSize)}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
-                setPage(1);
+                setSearchParams({ tab: activeTab, page: "1", ...(search && { search }) });
               }}
               className="rounded-md border border-slate-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
             >
@@ -240,7 +242,7 @@ export default function AdminOrdersPage() {
                 <PaginationBar
                   page={page}
                   totalPages={totalPages}
-                  onChange={setPage}
+                  onChange={handlePageChange}
                 />
               </div>
             )}

@@ -1,4 +1,5 @@
 import { OrderModel, type OrderDoc, type PaymentMethod } from "../models/Order";
+import { ReturnModel } from "../models/Return";
 import { CartService } from "./cart.service";
 import { InventoryService } from "./inventory.service";
 import { availabilityService } from "./availability.service";
@@ -203,23 +204,25 @@ export const OrderService = {
     const order = await OrderModel.create(orderData);
 
     // 5. Create rental reservations (holds)
+    const isCod = payload.paymentMethod === "cod";
     for (const item of cart.items!) {
       if (item.variant?.size) {
         try {
-          const reservation = await availabilityService.createHold(
+          await availabilityService.createHold(
             userId,
             item.productId.toString(),
             item.variant.size,
             item.variant?.color,
             new Date(item.rental.startDate),
             new Date(item.rental.endDate),
-            item.quantity
-          );
-          // Confirm hold immediately and link to order
-          await availabilityService.confirmReservation(
-            String(reservation._id),
+            item.quantity,
             String(order._id)
           );
+          // COD: confirm immediately (no payment required, order is already placed)
+          // Online payment: keep as "hold" with TTL → confirmed only after payment success
+          if (isCod) {
+            await availabilityService.confirmByOrder(String(order._id));
+          }
         } catch {
           // Fallback: reserve via old inventory system
           await InventoryService.reserveStock(
@@ -274,7 +277,8 @@ export const OrderService = {
 
     const query: any = { userId };
     if (filters?.status) {
-      query.status = filters.status;
+      const statuses = filters.status.split(",").map((s) => s.trim()).filter(Boolean);
+      query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
     }
 
     const [items, total] = await Promise.all([
@@ -292,7 +296,8 @@ export const OrderService = {
 
     const query: any = {};
     if (filters?.status) {
-      query.status = filters.status;
+      const statuses = filters.status.split(",").map((s) => s.trim()).filter(Boolean);
+      query.status = statuses.length === 1 ? statuses[0] : { $in: statuses };
     }
 
     const [items, total] = await Promise.all([
@@ -349,12 +354,12 @@ export const OrderService = {
   },
 
   /** Customer confirms delivery: shipping → delivered */
-  async deliverOrder(orderId: string, userId: string) {
+  async deliverOrder(orderId: string, userId: string, skipOwnerCheck = false) {
     const order = await OrderModel.findById(orderId);
     if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
 
-    // Verify ownership
-    if (String(order.userId) !== userId) {
+    // Verify ownership (skip for admin/staff)
+    if (!skipOwnerCheck && String(order.userId) !== userId) {
       throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
     }
 
@@ -374,6 +379,31 @@ export const OrderService = {
     return order;
   },
 
+  /**
+   * COD direct: admin xác nhận thanh toán + kích hoạt thuê ngay tại shop
+   * pending_payment → active_rental (bỏ qua shipping/delivered)
+   */
+  async activateCodRental(orderId: string, adminId: string) {
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+    if (order.paymentMethod !== "cod") {
+      throw new BadRequestError("INVALID_PAYMENT_METHOD", "Chỉ áp dụng cho đơn COD (lấy tại shop)");
+    }
+
+    order.paymentStatus = "paid";
+    order.confirmedAt = new Date();
+    await order.save();
+
+    await transitionStatus(order, "active_rental", adminId, "Khách đã thanh toán và nhận hàng tại shop");
+
+    await notificationService.notify(String(order.userId), "ORDER_CONFIRMED", {
+      orderNumber: order.orderNumber,
+      orderId: String(order._id),
+    });
+
+    return order;
+  },
+
   /** Cancel order (from pending/confirmed/picking) */
   async cancelOrder(orderId: string, userId: string, reason?: string) {
     const order = await OrderModel.findById(orderId);
@@ -381,20 +411,8 @@ export const OrderService = {
 
     await transitionStatus(order, "cancelled", userId, reason);
 
-    // Release reservations
+    // Release date-based reservations (RentalReservation system)
     await availabilityService.releaseByOrder(String(order._id));
-
-    // Release inventory
-    for (const item of order.items) {
-      if (item.variant?.size) {
-        await InventoryService.releaseStock(
-          item.productId.toString(),
-          item.variant.size,
-          item.variant?.color,
-          item.quantity
-        );
-      }
-    }
 
     return order;
   },
@@ -459,36 +477,77 @@ export const OrderService = {
       .sort({ deliveredAt: -1 });
   },
 
-  /** Mark order as returned */
-  async markReturned(orderId: string) {
+  /** Mark order as returned — calculates late fee at time of return */
+  async markReturned(orderId: string, staffId: string) {
     const order = await OrderModel.findById(orderId);
     if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
 
-    if (!["active_rental", "overdue"].includes(order.status)) {
-      throw new BadRequestError("INVALID_STATUS", "Invalid status transition. Order must be active_rental or overdue.");
+    // Calculate late fee
+    const now = new Date();
+    let lateFee = 0;
+    for (const item of order.items) {
+      const expectedReturnDate = new Date(item.rental.endDate);
+      if (now > expectedReturnDate) {
+        const daysLate = Math.ceil(
+          (now.getTime() - expectedReturnDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        lateFee += item.rental.pricePerDay * daysLate * item.quantity * env.LATE_FEE_MULTIPLIER;
+      }
     }
 
-    order.status = "returned";
+    order.lateFee = lateFee;
+    order.returnedAt = now;
+    order.actualReturnDate = now;
+
+    const notes = lateFee > 0
+      ? `Trả muộn — phí phạt: ${lateFee.toLocaleString("vi-VN")} VND`
+      : "Đã trả hàng đúng hạn";
+
+    await transitionStatus(order, "returned", staffId, notes);
     await order.save();
     return order;
   },
 
-  /** Start inspection */
-  async startInspection(orderId: string) {
+  /** Start inspection — creates Return record */
+  async startInspection(orderId: string, staffId: string) {
     const order = await OrderModel.findById(orderId);
     if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
 
-    if (order.status !== "returned") {
-      throw new BadRequestError("INVALID_STATUS", "Order must be returned first");
+    // Create Return document if not exists
+    const existing = await ReturnModel.findOne({ orderId });
+    if (!existing) {
+      await ReturnModel.create({
+        orderId: order._id,
+        userId: order.userId,
+        returnMethod: "in_store",
+        returnedAt: order.returnedAt || new Date(),
+        status: "pending_inspection",
+        items: [],
+        totalDamageFee: 0,
+        lateFee: order.lateFee || 0,
+        depositRefundAmount: 0,
+      });
     }
 
-    order.status = "inspecting";
+    await transitionStatus(order, "inspecting", staffId);
     await order.save();
     return order;
   },
 
-  /** Complete order */
-  async completeOrder(orderId: string) {
+  /** Complete inspection with damage assessment */
+  async completeInspection(
+    orderId: string,
+    staffId: string,
+    payload: {
+      items: {
+        orderItemIndex: number;
+        conditionAfter: string;
+        damageNotes?: string;
+        damageFee: number;
+      }[];
+      notes?: string;
+    }
+  ) {
     const order = await OrderModel.findById(orderId);
     if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
 
@@ -496,8 +555,59 @@ export const OrderService = {
       throw new BadRequestError("INVALID_STATUS", "Order must be in inspection first");
     }
 
-    order.status = "completed";
+    const totalDamageFee = payload.items.reduce((sum, item) => sum + (item.damageFee || 0), 0);
+    const depositRefundAmount = Math.max(
+      0,
+      (order.totalDeposit || 0) - (order.lateFee || 0) - totalDamageFee
+    );
+
+    // Upsert Return document with inspection results
+    const returnDoc = await ReturnModel.findOneAndUpdate(
+      { orderId },
+      {
+        items: payload.items.map((item) => ({
+          orderItemIndex: item.orderItemIndex,
+          productId: order.items[item.orderItemIndex]?.productId,
+          variantKey: order.items[item.orderItemIndex]?.variant || {},
+          conditionBefore: "good",
+          conditionAfter: item.conditionAfter,
+          damageNotes: item.damageNotes,
+          damageFee: item.damageFee || 0,
+        })),
+        totalDamageFee,
+        depositRefundAmount,
+        lateFee: order.lateFee || 0,
+        status: "inspected",
+        inspectedBy: staffId,
+        inspectedAt: new Date(),
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+
+    order.depositRefunded = depositRefundAmount;
+    order.inspectedAt = new Date();
+
+    const inspectionNotes = payload.notes
+      || `Hoàn cọc: ${depositRefundAmount.toLocaleString("vi-VN")} VND`
+      + (totalDamageFee > 0 ? ` | Phí hư hại: ${totalDamageFee.toLocaleString("vi-VN")} VND` : "")
+      + ((order.lateFee || 0) > 0 ? ` | Phí trễ hạn: ${order.lateFee!.toLocaleString("vi-VN")} VND` : "");
+
+    await transitionStatus(order, "completed", staffId, inspectionNotes);
     await order.save();
-    return order;
+
+    await notificationService.notify(String(order.userId), "RETURN_APPROVED", {
+      orderNumber: order.orderNumber,
+      orderId: String(order._id),
+      lateFee: order.lateFee || 0,
+      totalDamageFee,
+      depositRefundAmount,
+    });
+
+    return { order, returnRecord: returnDoc };
+  },
+
+  /** Get return/inspection record for an order */
+  async getReturnByOrder(orderId: string) {
+    return ReturnModel.findOne({ orderId });
   },
 };

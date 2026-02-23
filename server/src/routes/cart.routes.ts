@@ -14,6 +14,7 @@ export const cartRouter = Router();
 cartRouter.use(requireAuth);
 
 cartRouter.get("/", asyncHandler(CartController.get));
+cartRouter.get("/debug", asyncHandler(CartController.debug));
 cartRouter.post("/", validateBody(addToCartSchema), asyncHandler(CartController.add));
 cartRouter.patch("/", validateBody(updateCartItemSchema), asyncHandler(CartController.update));
 cartRouter.delete("/", validateBody(removeCartItemSchema), asyncHandler(CartController.remove));

@@ -11,10 +11,9 @@ export type Category = {
   updatedAt: string;
 };
 
-export type CategoryTreeResponse = {
-  roots: Category[];
-  children: Record<string, Category[]>;
-};
+// Server returns array of root categories, each with optional children[]
+export type CategoryWithChildren = Category & { children?: CategoryWithChildren[] };
+export type CategoryTreeResponse = CategoryWithChildren[];
 
 export type CategoryListResponse = {
   items: Category[];

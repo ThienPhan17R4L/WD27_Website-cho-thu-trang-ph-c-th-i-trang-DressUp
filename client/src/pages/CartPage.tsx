@@ -14,6 +14,11 @@ export default function CartPage() {
   const items = cart?.items ?? [];
   const totals = cart?.totals;
 
+  // Check for items without rental dates
+  const itemsWithoutDates = items.filter(
+    (item: any) => !item.rental?.startDate || !item.rental?.endDate
+  );
+
   if (isLoading) {
     return (
       <Container>
@@ -78,23 +83,43 @@ export default function CartPage() {
           ) : (
             <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_380px]">
               {/* left: items */}
-              <div className="bg-white ring-1 ring-slate-200">
-                <div className="px-7 pt-7">
-                  <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
-                    Items
+              <div className="space-y-6">
+                {/* Warning for items without rental dates */}
+                {itemsWithoutDates.length > 0 && (
+                  <div className="p-5 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-start gap-3">
+                      <span className="text-amber-600 text-xl">⚠️</span>
+                      <div>
+                        <div className="text-sm font-semibold text-amber-900">
+                          Cần cập nhật ngày thuê
+                        </div>
+                        <div className="mt-1 text-sm text-amber-800">
+                          {itemsWithoutDates.length} sản phẩm chưa có ngày thuê.
+                          Vui lòng chọn ngày bắt đầu và kết thúc, sau đó nhấn "UPDATE" cho từng sản phẩm.
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="px-7">
-                  {items.map((it: any) => (
-                    <CartItemRow
-                      key={it._id}
-                      item={it}
-                      updating={updateMut.isPending}
-                      onRemove={(itemId) => removeMut.mutate({ itemId })}
-                      onUpdate={(payload) => updateMut.mutate(payload)}
-                    />
-                  ))}
+                <div className="bg-white ring-1 ring-slate-200">
+                  <div className="px-7 pt-7">
+                    <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
+                      Items
+                    </div>
+                  </div>
+
+                  <div className="px-7">
+                    {items.map((it: any) => (
+                      <CartItemRow
+                        key={it._id}
+                        item={it}
+                        updating={updateMut.isPending}
+                        onRemove={(itemId) => removeMut.mutate({ itemId })}
+                        onUpdate={(payload) => updateMut.mutate(payload)}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
 

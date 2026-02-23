@@ -75,6 +75,9 @@ export const ordersApi = {
     activateRental: (id: string) => apiPatch<Order>(`/orders/${id}/activate`, {}),
     cancelOrder: (id: string, reason?: string) =>
       apiPatch<Order>(`/orders/${id}/cancel`, { reason }),
+    markReturned: (id: string) => apiPatch<Order>(`/orders/${id}/mark-returned`, {}),
+    startInspection: (id: string) => apiPatch<Order>(`/orders/${id}/start-inspection`, {}),
+    completeOrder: (id: string) => apiPatch<Order>(`/orders/${id}/complete`, {}),
     updateStatus: (id: string, status: string) => {
       const map: Record<string, () => Promise<Order>> = {
         confirmed: () => apiPatch<Order>(`/orders/${id}/confirm`, {}),

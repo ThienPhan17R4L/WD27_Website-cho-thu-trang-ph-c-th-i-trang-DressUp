@@ -15,6 +15,11 @@ paymentRouter.post(
 // Public routes (webhooks/callbacks)
 paymentRouter.post("/momo/callback", asyncHandler(PaymentController.momoCallback));
 
+// Mock payment endpoints (for testing)
+paymentRouter.get("/mock/:orderId", requireAuth, asyncHandler(PaymentController.getMockPayment));
+paymentRouter.post("/mock/:orderId/success", requireAuth, asyncHandler(PaymentController.completeMockPayment));
+paymentRouter.post("/mock/:orderId/fail", requireAuth, asyncHandler(PaymentController.failMockPayment));
+
 // Test endpoint (DEV ONLY)
 if (process.env.NODE_ENV !== "production") {
   paymentRouter.get("/momo/status/:orderId", asyncHandler(PaymentController.checkMoMoStatus));

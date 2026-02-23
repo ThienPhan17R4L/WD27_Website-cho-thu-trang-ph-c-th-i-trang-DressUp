@@ -39,15 +39,24 @@ export const CartService = {
     if (!cart) cart = await cartRepo.createForUser(userId);
 
     const items = cart.items.map((item: any) => {
-      const lineTotal = item.rental.days * item.rental.price * item.quantity;
+      // Convert Mongoose subdocument to plain object
+      const plainItem = item.toObject ? item.toObject() : item;
 
-      console.log(`[Cart Item] ${item.name}: days=${item.rental.days}, price/day=${item.rental.price}, qty=${item.quantity}, lineTotal=${lineTotal}`);
+      const lineTotal = plainItem.rental.days * plainItem.rental.price * plainItem.quantity;
+
+      console.log(`[Cart Item] ${plainItem.name}: days=${plainItem.rental.days}, price/day=${plainItem.rental.price}, qty=${plainItem.quantity}, lineTotal=${lineTotal}`);
 
       return {
-        ...item,
-        _id: item._id || new Types.ObjectId(),
+        _id: plainItem._id || new Types.ObjectId(),
+        productId: plainItem.productId,
+        name: plainItem.name,
+        image: plainItem.image,
+        rental: plainItem.rental,
+        variant: plainItem.variant,
+        deposit: plainItem.deposit,
+        quantity: plainItem.quantity,
         lineTotal,
-        pricePerDay: item.rental.price,
+        pricePerDay: plainItem.rental.price,
       };
     });
 
@@ -73,26 +82,46 @@ export const CartService = {
   },
 
   async addItem(userId: string, payload: any) {
+    console.log('[Cart] ========================================');
+    console.log('[Cart] ADD ITEM TO CART');
+    console.log('[Cart] ========================================');
+    console.log('[Cart] Payload received:', JSON.stringify(payload, null, 2));
+    console.log('[Cart] Payload.rentalStart:', payload.rentalStart);
+    console.log('[Cart] Payload.rentalEnd:', payload.rentalEnd);
+
     const product = await productRepo.findById(payload.productId);
     if (!product) throw new HttpError(404, "Product not found");
 
     const days = calculateRentalDays(payload.rentalStart, payload.rentalEnd);
     const pricePerDay = findRentalPrice(product, days);
 
+    console.log('[Cart] Calculated - Days:', days, 'Price/day:', pricePerDay);
+
     let cart = await cartRepo.getByUserId(userId);
     if (!cart) cart = await cartRepo.createForUser(userId);
 
+    // Find existing item with same product, variant, AND rental dates
     const existed = cart.items.find(
-      (i: any) =>
-        i.productId.toString() === payload.productId &&
-        i.variant?.size === payload.variant?.size &&
-        i.rental.startDate.toISOString().split('T')[0] === payload.rentalStart &&
-        i.rental.endDate.toISOString().split('T')[0] === payload.rentalEnd
+      (i: any) => {
+        // Check basic fields
+        if (i.productId.toString() !== payload.productId) return false;
+        if (i.variant?.size !== payload.variant?.size) return false;
+
+        // Safe check for rental dates
+        if (!i.rental?.startDate || !i.rental?.endDate) return false;
+
+        const existingStart = i.rental.startDate.toISOString().split('T')[0];
+        const existingEnd = i.rental.endDate.toISOString().split('T')[0];
+
+        return existingStart === payload.rentalStart && existingEnd === payload.rentalEnd;
+      }
     );
 
     if (existed) {
+      console.log(`[Cart] Found existing item, merging quantity: ${existed.quantity} + ${payload.quantity}`);
       existed.quantity += payload.quantity;
     } else {
+      console.log(`[Cart] Creating new item with rental dates: ${payload.rentalStart} to ${payload.rentalEnd}`);
       const newItem: any = {
         _id: new Types.ObjectId(),
         productId: product._id,
@@ -108,14 +137,32 @@ export const CartService = {
         quantity: payload.quantity,
       };
 
+      console.log('[Cart] New item object created:');
+      console.log('[Cart]   - rental.startDate:', newItem.rental.startDate);
+      console.log('[Cart]   - rental.endDate:', newItem.rental.endDate);
+      console.log('[Cart]   - rental.days:', newItem.rental.days);
+
       if (product.images && product.images[0]) {
         newItem.image = product.images[0];
       }
 
+      console.log('[Cart] Pushing item to cart.items array...');
       cart.items.push(newItem);
+      console.log(`[Cart] New item added. Total items: ${cart.items.length}`);
+      const lastItem = cart.items[cart.items.length - 1];
+      if (lastItem) {
+        console.log('[Cart] Last item in array:', lastItem.rental);
+      }
     }
 
-    return cartRepo.save(cart);
+    await cartRepo.save(cart);
+    console.log(`[Cart] Cart saved. Verifying rental dates...`);
+    cart.items.forEach((item: any, i: number) => {
+      console.log(`  Item ${i}: ${item.name} - Start: ${item.rental?.startDate}, End: ${item.rental?.endDate}`);
+    });
+
+    // Return formatted cart with plain objects
+    return this.getCart(userId);
   },
 
   async updateItem(userId: string, itemId: string, updates: any) {
@@ -146,7 +193,8 @@ export const CartService = {
       item.variant = updates.variant;
     }
 
-    return cartRepo.save(cart);
+    await cartRepo.save(cart);
+    return this.getCart(userId);
   },
 
   async removeItem(userId: string, itemId: string) {
@@ -155,10 +203,12 @@ export const CartService = {
 
     cart.items = cart.items.filter((i: any) => i._id.toString() !== itemId);
 
-    return cartRepo.save(cart);
+    await cartRepo.save(cart);
+    return this.getCart(userId);
   },
 
   async clear(userId: string) {
-    return cartRepo.clear(userId);
+    await cartRepo.clear(userId);
+    return this.getCart(userId);
   },
 };

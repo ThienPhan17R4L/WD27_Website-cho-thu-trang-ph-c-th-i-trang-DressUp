@@ -31,6 +31,7 @@ export interface MoMoCreatePaymentResponse {
   qrCodeUrl: string; // QR code image URL
   deeplink: string; // Deep link for MoMo app
   deeplinkMiniApp?: string; // Deep link for MoMo Mini App
+  requestId: string; // Request ID for tracking and querying transaction status
 }
 
 export interface MoMoCallbackData {
@@ -138,12 +139,13 @@ export const MoMoService = {
         throw new Error(`MoMo API Error: ${data.message} (Code: ${data.resultCode})`);
       }
 
-      // Return payment URLs
+      // Return payment URLs and requestId
       return {
         payUrl: data.payUrl,
         qrCodeUrl: data.qrCodeUrl || "",
         deeplink: data.deeplink || "",
         deeplinkMiniApp: data.deeplinkMiniApp,
+        requestId: requestId, // Return requestId for tracking
       };
     } catch (error: any) {
       console.error("[MOMO] Payment creation failed:", error.message);

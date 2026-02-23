@@ -8,6 +8,25 @@ export const CartController = {
     res.json(cart);
   },
 
+  async debug(req: Request, res: Response) {
+    const userId = (req as any).user!.id;
+    const cart = await CartService.getCart(userId);
+
+    // Check for items without rental dates
+    const issues = cart.items.map((item: any, index: number) => ({
+      index,
+      name: item.name,
+      hasRentalDates: !!(item.rental?.startDate && item.rental?.endDate),
+      rental: item.rental || null,
+    }));
+
+    res.json({
+      totalItems: cart.items.length,
+      issues,
+      itemsWithoutDates: issues.filter(i => !i.hasRentalDates).length,
+    });
+  },
+
   async add(req: Request, res: Response) {
     const userId = (req as any).user!.id;
     const cart = await CartService.addItem(userId, req.body);

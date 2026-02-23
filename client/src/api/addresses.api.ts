@@ -2,7 +2,7 @@ import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { Address, CreateAddressPayload, UpdateAddressPayload } from "@/types/address";
 
 export const addressesApi = {
-  list: () => apiGet<Address[]>("/addresses"),
+  list: () => apiGet<{ data: Address[] }>("/addresses"),
 
   create: (data: CreateAddressPayload) => apiPost<Address>("/addresses", data),
 

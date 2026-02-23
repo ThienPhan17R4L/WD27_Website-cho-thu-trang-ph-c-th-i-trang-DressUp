@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { useCart } from "@/hooks/useCart";
 import { useCreateOrder } from "@/hooks/useOrders";
 import { formatVND } from "@/utils/formatCurrency";
 import { useNotification } from "@/contexts/NotificationContext";
+import { useAddresses, useCreateAddress, useUpdateAddress } from "@/hooks/useAddresses";
+import AddressModal from "@/components/checkout/AddressModal";
 import { apiPost } from "@/lib/api";
 
 const ACCENT = "rgb(213, 176, 160)";
@@ -15,16 +17,29 @@ export default function CheckoutPage() {
   const createOrder = useCreateOrder();
   const { showNotification } = useNotification();
 
+  // Addresses
+  const { data: addressesResponse } = useAddresses();
+  const createAddress = useCreateAddress();
+  const updateAddress = useUpdateAddress();
+  const addresses = addressesResponse?.data || [];
+  const defaultAddress = addresses.find((a) => a.isDefault);
+
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+
   const [form, setForm] = useState({
-    receiverName: "",
-    receiverPhone: "",
-    line1: "",
-    ward: "",
-    district: "",
-    province: "",
     paymentMethod: "cod" as "cod" | "vnpay" | "momo" | "zalopay",
     notes: "",
   });
+
+  // Auto-select default address
+  useEffect(() => {
+    if (defaultAddress) {
+      setSelectedAddressId(defaultAddress._id);
+    }
+  }, [defaultAddress]);
+
+  const selectedAddress = addresses.find((a) => a._id === selectedAddressId);
 
   const totals = cart?.totals || {
     subtotal: 0,
@@ -40,26 +55,53 @@ export default function CheckoutPage() {
     0
   ) || 0;
 
+  const handleCreateAddress = async (data: any) => {
+    try {
+      const newAddr = await createAddress.mutateAsync({
+        ...data,
+        isDefault: addresses.length === 0,
+      });
+      showNotification("success", "Địa chỉ đã được tạo");
+      setSelectedAddressId(newAddr._id);
+      setIsAddressModalOpen(false);
+    } catch (error: any) {
+      showNotification("error", error.response?.data?.message || "Không thể tạo địa chỉ");
+      throw error;
+    }
+  };
+
+  const handleUpdateAddress = async (id: string, data: any) => {
+    try {
+      await updateAddress.mutateAsync({ id, data });
+      showNotification("success", "Địa chỉ đã được cập nhật");
+      setIsAddressModalOpen(false);
+    } catch (error: any) {
+      showNotification("error", error.response?.data?.message || "Không thể cập nhật địa chỉ");
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Client-side validation
-    if (
-      !form.receiverName ||
-      !form.receiverPhone ||
-      !form.line1 ||
-      !form.ward ||
-      !form.district ||
-      !form.province
-    ) {
-      showNotification("error", "Vui lòng điền đầy đủ thông tin giao hàng");
+    // Validate rental dates in cart items
+    const itemsWithoutDates = cart?.items?.filter(
+      (item: any) => !item.rental?.startDate || !item.rental?.endDate
+    );
+
+    if (itemsWithoutDates && itemsWithoutDates.length > 0) {
+      showNotification(
+        "error",
+        "Vui lòng cập nhật ngày thuê cho tất cả sản phẩm trong giỏ hàng trước khi thanh toán"
+      );
+      navigate("/cart");
       return;
     }
 
-    // Validate phone format (Vietnam phone numbers)
-    const phoneRegex = /^(0|\+84)[0-9]{9}$/;
-    if (!phoneRegex.test(form.receiverPhone.trim())) {
-      showNotification("error", "Số điện thoại không hợp lệ (VD: 0912345678)");
+    // Validate address selection
+    if (!selectedAddress) {
+      showNotification("error", "Vui lòng chọn địa chỉ giao hàng");
+      setIsAddressModalOpen(true);
       return;
     }
 
@@ -72,22 +114,22 @@ export default function CheckoutPage() {
     try {
       const order = await createOrder.mutateAsync({
         shippingAddress: {
-          receiverName: form.receiverName.trim(),
-          receiverPhone: form.receiverPhone.trim(),
-          line1: form.line1.trim(),
-          ward: form.ward.trim(),
-          district: form.district.trim(),
-          province: form.province.trim(),
-          country: "VN",
+          receiverName: selectedAddress.receiverName,
+          receiverPhone: selectedAddress.receiverPhone,
+          line1: selectedAddress.line1,
+          ward: selectedAddress.ward,
+          district: selectedAddress.district,
+          province: selectedAddress.province,
+          country: selectedAddress.country || "VN",
         },
         paymentMethod: form.paymentMethod,
         notes: form.notes.trim(),
       });
 
-      // Handle MoMo payment
+      // Handle MoMo payment (Real UAT)
       if (form.paymentMethod === "momo") {
         try {
-          showNotification("info", "Redirecting to MoMo payment...");
+          showNotification("info", "Đang chuyển đến cổng thanh toán MoMo...");
 
           // Call payment creation API
           const payment = await apiPost<{ payUrl: string; qrCodeUrl: string; deeplink: string }>(
@@ -96,10 +138,11 @@ export default function CheckoutPage() {
           );
 
           // Redirect to MoMo payment page
+          console.log("[Checkout] Redirecting to MoMo:", payment.payUrl);
           window.location.href = payment.payUrl;
         } catch (paymentError: any) {
-          showNotification("error", "Failed to initialize MoMo payment. Please try again.");
-          console.error("MoMo payment error:", paymentError);
+          showNotification("error", paymentError.message || "Không thể khởi tạo thanh toán MoMo. Vui lòng thử lại.");
+          console.error("[Checkout] MoMo payment error:", paymentError);
         }
         return;
       }
@@ -139,6 +182,11 @@ export default function CheckoutPage() {
     );
   }
 
+  // Check for items without rental dates
+  const itemsWithoutDates = cart?.items?.filter(
+    (item: any) => !item.rental?.startDate || !item.rental?.endDate
+  ) || [];
+
   return (
     <div className="bg-white">
       <Container>
@@ -146,6 +194,32 @@ export default function CheckoutPage() {
           <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
             Checkout
           </div>
+
+          {/* Warning for items without rental dates */}
+          {itemsWithoutDates.length > 0 && (
+            <div className="mt-6 p-5 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-start gap-3">
+                <span className="text-red-600 text-xl">⚠️</span>
+                <div>
+                  <div className="text-sm font-semibold text-red-900">
+                    Thiếu thông tin ngày thuê
+                  </div>
+                  <div className="mt-2 text-sm text-red-800">
+                    {itemsWithoutDates.length} sản phẩm trong giỏ hàng chưa có ngày thuê.
+                    Vui lòng{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/cart")}
+                      className="underline font-semibold hover:text-red-900"
+                    >
+                      quay lại giỏ hàng
+                    </button>{" "}
+                    và cập nhật ngày thuê cho tất cả sản phẩm.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form
             onSubmit={handleSubmit}
@@ -157,94 +231,48 @@ export default function CheckoutPage() {
                 Shipping Information
               </div>
 
-              <div className="mt-6 space-y-5">
-                <div>
-                  <label className="text-[13px] font-medium text-slate-700">
-                    Receiver Name *
-                  </label>
-                  <input
-                    required
-                    value={form.receiverName}
-                    onChange={(e) =>
-                      setForm({ ...form, receiverName: e.target.value })
-                    }
-                    className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[13px] font-medium text-slate-700">
-                    Phone Number *
-                  </label>
-                  <input
-                    required
-                    value={form.receiverPhone}
-                    onChange={(e) =>
-                      setForm({ ...form, receiverPhone: e.target.value })
-                    }
-                    placeholder="0912345678"
-                    className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[13px] font-medium text-slate-700">
-                    Address *
-                  </label>
-                  <input
-                    required
-                    value={form.line1}
-                    onChange={(e) =>
-                      setForm({ ...form, line1: e.target.value })
-                    }
-                    placeholder="123 Đường ABC"
-                    className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                  <div>
-                    <label className="text-[13px] font-medium text-slate-700">
-                      Ward *
-                    </label>
-                    <input
-                      required
-                      value={form.ward}
-                      onChange={(e) =>
-                        setForm({ ...form, ward: e.target.value })
-                      }
-                      className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
-                    />
+              {/* Address Section */}
+              <div className="mt-6 p-5 bg-[#f6f3ef] border border-slate-200 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Địa chỉ giao hàng
                   </div>
-
-                  <div>
-                    <label className="text-[13px] font-medium text-slate-700">
-                      District *
-                    </label>
-                    <input
-                      required
-                      value={form.district}
-                      onChange={(e) =>
-                        setForm({ ...form, district: e.target.value })
-                      }
-                      className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[13px] font-medium text-slate-700">
-                      Province *
-                    </label>
-                    <input
-                      required
-                      value={form.province}
-                      onChange={(e) =>
-                        setForm({ ...form, province: e.target.value })
-                      }
-                      className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
-                    />
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressModalOpen(true)}
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: ACCENT }}
+                  >
+                    {selectedAddress ? "Thay đổi" : "Chọn địa chỉ"}
+                  </button>
                 </div>
+
+                {selectedAddress ? (
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <div className="flex items-center gap-2">
+                      {selectedAddress.isDefault && (
+                        <span className="text-xs bg-slate-200 px-2 py-0.5 rounded">
+                          Mặc định
+                        </span>
+                      )}
+                      {selectedAddress.label && (
+                        <span className="font-medium">{selectedAddress.label}</span>
+                      )}
+                    </div>
+                    <div className="font-medium text-slate-900">
+                      {selectedAddress.receiverName} | {selectedAddress.receiverPhone}
+                    </div>
+                    <div className="text-slate-600">
+                      {selectedAddress.line1}
+                      <br />
+                      {selectedAddress.ward}, {selectedAddress.district}, {selectedAddress.province}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500 italic">
+                    Chưa chọn địa chỉ giao hàng
+                  </div>
+                )}
               </div>
 
               <div className="mt-10">
@@ -363,8 +391,8 @@ export default function CheckoutPage() {
 
                 <button
                   type="submit"
-                  disabled={createOrder.isPending}
-                  className="mt-7 h-12 w-full text-[12px] font-semibold tracking-[0.22em] uppercase text-white disabled:opacity-60"
+                  disabled={createOrder.isPending || itemsWithoutDates.length > 0 || !selectedAddress}
+                  className="mt-7 h-12 w-full text-[12px] font-semibold tracking-[0.22em] uppercase text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ backgroundColor: ACCENT }}
                 >
                   {createOrder.isPending ? "PLACING ORDER..." : "PLACE ORDER"}
@@ -379,6 +407,17 @@ export default function CheckoutPage() {
           </form>
         </div>
       </Container>
+
+      {/* Address Modal */}
+      <AddressModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        addresses={addresses}
+        selectedAddressId={selectedAddressId || "new"}
+        onSelectAddress={setSelectedAddressId}
+        onCreateAddress={handleCreateAddress}
+        onUpdateAddress={handleUpdateAddress}
+      />
     </div>
   );
 }

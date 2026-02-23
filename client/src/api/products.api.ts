@@ -54,3 +54,10 @@ export async function updateProduct(id: string, data: any) {
 export async function deleteProduct(id: string) {
   return apiDelete(`/products/${id}`);
 }
+
+/**
+ * Get tag suggestions
+ */
+export async function getTagSuggestions(query: string) {
+  return apiGet<{ tags: string[] }>("/products/tags/suggestions", { q: query });
+}

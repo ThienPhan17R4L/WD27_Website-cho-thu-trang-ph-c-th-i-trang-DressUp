@@ -9,9 +9,16 @@ export const OrderController = {
   },
 
   async getById(req: Request, res: Response) {
-    const userId = (req as any).user!.id as string;
+    const user = (req as any).user!;
+    const userId = user.id as string;
     const id = String(req.params.id);
-    const order = await OrderService.getOrderById(id, userId);
+
+    // Admin/Staff can view any order, regular users can only view their own
+    const isStaffOrAdmin = user.roles?.includes("admin") || user.roles?.includes("staff");
+    const order = isStaffOrAdmin
+      ? await OrderService.getOrderByIdAdmin(id)
+      : await OrderService.getOrderById(id, userId);
+
     res.json(order);
   },
 
@@ -94,5 +101,26 @@ export const OrderController = {
     const id = String(req.params.id);
     const lateFee = await OrderService.calculateLateFee(id);
     res.json({ lateFee });
+  },
+
+  /** PATCH /orders/:id/mark-returned - Mark order as returned */
+  async markReturned(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const order = await OrderService.markReturned(id);
+    res.json(order);
+  },
+
+  /** PATCH /orders/:id/start-inspection - Start inspection */
+  async startInspection(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const order = await OrderService.startInspection(id);
+    res.json(order);
+  },
+
+  /** PATCH /orders/:id/complete - Complete order */
+  async completeOrder(req: Request, res: Response) {
+    const id = String(req.params.id);
+    const order = await OrderService.completeOrder(id);
+    res.json(order);
   },
 };

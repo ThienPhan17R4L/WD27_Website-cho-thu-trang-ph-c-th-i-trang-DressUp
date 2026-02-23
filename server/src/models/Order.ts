@@ -54,6 +54,51 @@ export interface ShippingAddress {
   postalCode?: string;
 }
 
+/**
+ * Payment details for storing payment gateway information
+ * Used for refunds, chargebacks, and audit trail
+ */
+export interface PaymentDetails {
+  // Common fields
+  transId?: string; // Transaction ID from payment gateway
+  requestId?: string; // Request ID sent to gateway
+  paidAt?: Date; // Payment completion timestamp
+  failedAt?: Date; // Payment failure timestamp
+  refundedAt?: Date; // Refund completion timestamp
+
+  // MoMo specific
+  momo?: {
+    transId: string; // MoMo transaction ID
+    requestId: string; // Request ID
+    orderId: string; // Order ID sent to MoMo
+    amount: number; // Amount paid via MoMo
+    resultCode: number; // MoMo result code (0 = success)
+    message: string; // Result message from MoMo
+    payType: string; // Payment type (qr, app, etc.)
+    responseTime: number; // Response timestamp from MoMo
+    extraData?: string; // Additional data
+  };
+
+  // VNPay specific
+  vnpay?: {
+    transactionNo: string;
+    bankCode: string;
+    cardType: string;
+    responseCode: string;
+  };
+
+  // For refunds tracking
+  refundInfo?: {
+    refundAmount: number;
+    refundReason?: string;
+    refundTransId?: string;
+    refundedAt: Date;
+  };
+
+  // Raw callback data for debugging
+  rawCallback?: any;
+}
+
 export interface OrderDoc {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
@@ -73,7 +118,7 @@ export interface OrderDoc {
 
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
-  paymentDetails?: any;
+  paymentDetails?: PaymentDetails;
 
   status: OrderStatus;
   statusHistory: StatusHistoryEntry[];

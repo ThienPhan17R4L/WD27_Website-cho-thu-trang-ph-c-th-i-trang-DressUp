@@ -29,3 +29,8 @@ orderRouter.patch("/:id/ship", requireStaffOrAdmin, asyncHandler(OrderController
 orderRouter.patch("/:id/deliver", asyncHandler(OrderController.deliverOrder));
 orderRouter.patch("/:id/activate", asyncHandler(OrderController.activateRental));
 orderRouter.patch("/:id/cancel", asyncHandler(OrderController.cancelOrder));
+
+// Additional status transitions - Staff/Admin
+orderRouter.patch("/:id/mark-returned", requireStaffOrAdmin, asyncHandler(OrderController.markReturned));
+orderRouter.patch("/:id/start-inspection", requireStaffOrAdmin, asyncHandler(OrderController.startInspection));
+orderRouter.patch("/:id/complete", requireStaffOrAdmin, asyncHandler(OrderController.completeOrder));

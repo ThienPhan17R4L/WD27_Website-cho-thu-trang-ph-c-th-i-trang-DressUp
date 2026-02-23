@@ -66,7 +66,17 @@ export const OrderService = {
     }
 
     // 2. Check availability for all items (time-based)
+    console.log('[Order] ========================================');
+    console.log('[Order] CHECKING AVAILABILITY');
+    console.log('[Order] ========================================');
+    console.log('[Order] Cart items count:', cart.items.length);
+
     for (const item of cart.items!) {
+      console.log(`[Order] Checking item: ${item.name}`);
+      console.log(`[Order]   - Product ID: ${item.productId}`);
+      console.log(`[Order]   - Variant: ${item.variant?.size} ${item.variant?.color || ''}`);
+      console.log(`[Order]   - Quantity: ${item.quantity}`);
+
       if (!item.variant?.size) {
         throw new BadRequestError(
           "INVALID_ITEM",
@@ -74,10 +84,20 @@ export const OrderService = {
         );
       }
 
+      // Validate rental dates exist
+      if (!item.rental?.startDate || !item.rental?.endDate) {
+        console.log('[Order]   ❌ MISSING RENTAL DATES');
+        throw new BadRequestError(
+          "MISSING_RENTAL_DATES",
+          `Product ${item.name} is missing rental dates. Please update the rental period in your cart before checkout.`
+        );
+      }
+
       const startDate = new Date(item.rental.startDate);
       const endDate = new Date(item.rental.endDate);
+      console.log(`[Order]   - Rental: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
 
-      const { available } = await availabilityService.checkAvailability(
+      const availResult = await availabilityService.checkAvailability(
         item.productId.toString(),
         item.variant.size,
         item.variant?.color,
@@ -86,13 +106,20 @@ export const OrderService = {
         item.quantity
       );
 
-      if (!available) {
+      console.log(`[Order]   - Availability check result:`, availResult);
+
+      if (!availResult.available) {
+        console.log('[Order]   ❌ NOT AVAILABLE');
         throw new BadRequestError(
           "NOT_AVAILABLE",
           `Product ${item.name} (${item.variant.size}) is not available for the selected dates`
         );
       }
+
+      console.log('[Order]   ✅ Available');
     }
+
+    console.log('[Order] ✅ All items available');
 
     // 3. Calculate totals
     const subtotal = cart.totals?.subtotal || 0;
@@ -227,6 +254,12 @@ export const OrderService = {
 
   async getOrderById(orderId: string, userId: string) {
     const order = await OrderModel.findOne({ _id: orderId, userId });
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+    return order;
+  },
+
+  async getOrderByIdAdmin(orderId: string) {
+    const order = await OrderModel.findById(orderId);
     if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
     return order;
   },
@@ -424,5 +457,47 @@ export const OrderService = {
     })
       .populate("items.productId")
       .sort({ deliveredAt: -1 });
+  },
+
+  /** Mark order as returned */
+  async markReturned(orderId: string) {
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+
+    if (!["active_rental", "overdue"].includes(order.status)) {
+      throw new BadRequestError("INVALID_STATUS", "Invalid status transition. Order must be active_rental or overdue.");
+    }
+
+    order.status = "returned";
+    await order.save();
+    return order;
+  },
+
+  /** Start inspection */
+  async startInspection(orderId: string) {
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+
+    if (order.status !== "returned") {
+      throw new BadRequestError("INVALID_STATUS", "Order must be returned first");
+    }
+
+    order.status = "inspecting";
+    await order.save();
+    return order;
+  },
+
+  /** Complete order */
+  async completeOrder(orderId: string) {
+    const order = await OrderModel.findById(orderId);
+    if (!order) throw new NotFoundError("ORDER_NOT_FOUND", "Order not found");
+
+    if (order.status !== "inspecting") {
+      throw new BadRequestError("INVALID_STATUS", "Order must be in inspection first");
+    }
+
+    order.status = "completed";
+    await order.save();
+    return order;
   },
 };

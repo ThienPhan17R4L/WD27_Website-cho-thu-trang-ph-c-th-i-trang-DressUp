@@ -25,7 +25,7 @@ const AppShell: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ background: "#f7f3ef" }}>
       <Header
         activePath={activePath}
         cartCount={0}
@@ -34,7 +34,7 @@ const AppShell: React.FC = () => {
         onLogout={handleLogout}
       />
 
-      <main className="py-8">
+      <main className="pt-20">
         <Outlet />
       </main>
     </div>

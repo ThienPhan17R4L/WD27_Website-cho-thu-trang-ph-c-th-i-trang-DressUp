@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { InventoryModel } from "../models/Inventory";
 import { NotFoundError } from "../utils/errors";
 import { auditService } from "../services/audit.service";
+import { InventoryService } from "../services/inventory.service";
 
 export const inventoryController = {
   list: async (req: Request, res: Response, next: NextFunction) => {
@@ -83,6 +84,95 @@ export const inventoryController = {
       }
 
       return res.json({ data: inventory });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  createForVariant: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { productId, size, color, initialQty } = req.body;
+      const inventory = await InventoryService.createInventoryForVariant(
+        productId,
+        size,
+        color,
+        initialQty || 0
+      );
+      return res.json(inventory);
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  addStock: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+      const { qty } = req.body;
+      const inventory = await InventoryService.addStock(id, qty);
+      return res.json(inventory);
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  removeStock: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+      const { qty } = req.body;
+      const inventory = await InventoryService.removeStock(id, qty);
+      return res.json(inventory);
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  markCleaned: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+      const { qty } = req.body;
+      const inventory = await InventoryService.markCleaned(id, qty);
+      return res.json(inventory);
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  markRepaired: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+      const { qty } = req.body;
+      const inventory = await InventoryService.markRepaired(id, qty);
+      return res.json(inventory);
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  markBroken: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = String(req.params.id);
+      const { qty } = req.body;
+      const inventory = await InventoryService.markBroken(id, qty);
+      return res.json(inventory);
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  getGrouped: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const page = Number(req.query.page) || 1;
+      const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const search = req.query.search ? String(req.query.search) : undefined;
+
+      const params: { page: number; limit: number; search?: string } = { page, limit };
+      if (search) {
+        params.search = search;
+      }
+
+      const result = await InventoryService.getInventoryGroupedByProduct(params);
+
+      return res.json(result);
     } catch (e) {
       next(e);
     }

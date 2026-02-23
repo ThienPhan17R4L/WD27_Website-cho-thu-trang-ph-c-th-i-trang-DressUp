@@ -1,4 +1,3 @@
-import React from "react";
 
 const ACCENT = "rgb(213, 176, 160)";
 

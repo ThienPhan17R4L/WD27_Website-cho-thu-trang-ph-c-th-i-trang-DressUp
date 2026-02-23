@@ -146,13 +146,9 @@ export function Header({
 }) {
   const nav: NavItem[] = useMemo(
     () => [
-      { label: "Home", href: "/" },
-      { label: "Rent a dress", href: "/rent" },
-      { label: "Find a dress", href: "/products" },
-      { label: "Occasions", href: "/occasions" },
-      { label: "Whats new", href: "/whats-new" },
-      { label: "Features", href: "/features" },
-      { label: "Contacts", href: "/contacts" },
+      { label: "Trang chủ", href: "/home" },
+      { label: "Danh mục", href: "/categories" },
+      { label: "Sản phẩm", href: "/products" },
     ],
     []
   );
@@ -168,10 +164,9 @@ export function Header({
 
   const userActions = useMemo(
     () => [
-      { label: "My account", href: "/account" },
-      { label: "My rentals", href: "/account/rentals" },
-      { label: "My Orders", href: "/orders" },
-      { label: "Addresses", href: "/account/addresses" },
+      { label: "Hồ sơ", href: "/profile" },
+      { label: "Đơn hàng", href: "/orders" },
+      { label: "Đang thuê", href: "/rentals/active" },
     ],
     []
   );
@@ -284,7 +279,7 @@ export function Header({
                             "text-rose-700 hover:bg-rose-50",
                           ].join(" ")}
                         >
-                          Logout
+                          Đăng xuất
                         </button>
                       </div>
                     </div>
@@ -300,11 +295,11 @@ export function Header({
                     "focus:outline-none focus:ring-2 focus:ring-rose-200 focus:ring-offset-2",
                   ].join(" ")}
                 >
-                  Sign in
+                  Đăng nhập
                 </button>
               )}
 
-              <IconButton aria-label="Cart" onClick={onOpenCart ?? (() => onNavigate("/cart"))}>
+              <IconButton aria-label="Cart" onClick={onOpenCart ?? (() => onNavigate(user ? "/cart" : "/login"))}>
                 <IconBag className="h-5 w-5" />
                 {cartCount > 0 && (
                   <span className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-300 px-1 text-[11px] font-semibold text-white">
@@ -313,7 +308,7 @@ export function Header({
                 )}
               </IconButton>
 
-              <IconButton aria-label="Search" onClick={onOpenSearch ?? (() => onNavigate("/search"))}>
+              <IconButton aria-label="Search" onClick={onOpenSearch ?? (() => onNavigate("/products"))}>
                 <IconSearch className="h-5 w-5" />
               </IconButton>
 
@@ -369,7 +364,7 @@ export function Header({
               {user ? (
                 <div className="mt-3 border-t border-slate-100 pt-3">
                   <div className="px-3 text-xs font-semibold tracking-[0.18em] uppercase text-slate-400">
-                    Account
+                    Tài khoản
                   </div>
 
                   <div className="mt-2 grid">
@@ -395,7 +390,7 @@ export function Header({
                       }}
                       className="text-left rounded-md px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
                     >
-                      Logout
+                      Đăng xuất
                     </button>
                   </div>
                 </div>

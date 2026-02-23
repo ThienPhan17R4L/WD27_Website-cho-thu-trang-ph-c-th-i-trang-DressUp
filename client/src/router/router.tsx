@@ -12,6 +12,7 @@ import AdminReturnsPage from '@/pages/admin/ReturnsPage';
 import AdminCouponsPage from '@/pages/admin/CouponsPage';
 import AdminAuditLogsPage from '@/pages/admin/AuditLogsPage';
 import ProductFormPage from '@/pages/admin/ProductFormPage';
+import AdminProductDetailPage from '@/pages/admin/ProductDetailPage';
 import StaffLayout from '@/layouts/StaffLayout';
 import StaffDashboardPage from '@/pages/staff/StaffDashboardPage';
 import StaffOrdersPage from '@/pages/staff/StaffOrdersPage';
@@ -29,9 +30,13 @@ import ProductDetailPage from '@/pages/ProductDetailPage';
 import CartPage from '@/pages/CartPage';
 import CheckoutPage from '@/pages/CheckoutPage';
 import OrdersPage from '@/pages/OrdersPage';
+import OrderDetailPage from '@/pages/OrderDetailPage';
 import ActiveRentalsPage from '@/pages/ActiveRentalsPage';
 import ProfilePage from '@/pages/ProfilePage';
 import CategoriesPage from '@/pages/CategoriesPage';
+import MockPaymentPage from '@/pages/MockPaymentPage';
+import PaymentReturnPage from '@/pages/PaymentReturnPage';
+import AdminOrderDetailPage from '@/pages/admin/OrderDetailPage';
 
 const AppRouter: React.FC = () => {
   return (
@@ -59,8 +64,10 @@ const AppRouter: React.FC = () => {
             <Route path="products" element={<AdminProductsPage />} />
             <Route path="products/new" element={<ProductFormPage />} />
             <Route path="products/:id/edit" element={<ProductFormPage />} />
+            <Route path="products/:slug" element={<AdminProductDetailPage />} />
             <Route path="categories" element={<AdminCategoriesPage />} />
             <Route path="orders" element={<AdminOrdersPage />} />
+            <Route path="orders/:id" element={<AdminOrderDetailPage />} />
             <Route path="users" element={<AdminUsersPage />} />
             <Route path="inventory" element={<AdminInventoryPage />} />
             <Route path="returns" element={<AdminReturnsPage />} />
@@ -82,7 +89,10 @@ const AppRouter: React.FC = () => {
         {/* Regular user protected routes */}
         <Route element={<AppShell />}>
           <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/payment/mock/:orderId" element={<MockPaymentPage />} />
+          <Route path="/payment/momo/return" element={<PaymentReturnPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/:id" element={<OrderDetailPage />} />
           <Route path="/rentals/active" element={<ActiveRentalsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>

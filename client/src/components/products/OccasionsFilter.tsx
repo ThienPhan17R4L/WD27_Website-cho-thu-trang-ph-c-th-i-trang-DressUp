@@ -3,11 +3,11 @@ import { useCategories } from "@/hooks/useCategories";
 import { FilterDivider, FilterItemButton, FilterSection } from "./FilterSection";
 
 export function OccasionsFilter({
-  categoryId,
+  categorySlug,
   onChange,
 }: {
-  categoryId?: string;
-  onChange: (categoryId?: string) => void;
+  categorySlug?: string;
+  onChange: (slug?: string) => void;
 }) {
   const { data } = useCategories();
 
@@ -18,7 +18,7 @@ export function OccasionsFilter({
 
   return (
     <FilterSection title="Occasions">
-      <FilterItemButton active={!categoryId} onClick={() => onChange(undefined)}>
+      <FilterItemButton active={!categorySlug} onClick={() => onChange(undefined)}>
         All
       </FilterItemButton>
 
@@ -26,7 +26,7 @@ export function OccasionsFilter({
         {cats.map((c, idx) => (
           <div key={c._id}>
             <FilterDivider />
-            <FilterItemButton active={c._id === categoryId} onClick={() => onChange(c._id)}>
+            <FilterItemButton active={c.slug === categorySlug} onClick={() => onChange(c.slug)}>
               {c.name}
             </FilterItemButton>
             {idx === cats.length - 1 ? <FilterDivider /> : null}

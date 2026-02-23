@@ -7,7 +7,7 @@ export function ProductGrid() {
   // Fetch 8 sản phẩm mới nhất, status active
   const { data, isLoading, isError } = useProducts({
     page: 1,
-    limit: 8,
+    limit: 6,
     sort: "-createdAt",
     status: "active",
   });
@@ -58,7 +58,7 @@ export function ProductGrid() {
             No products available
           </div>
         ) : (
-          <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((p) => (
               <ProductCard key={p._id} product={p} />
             ))}

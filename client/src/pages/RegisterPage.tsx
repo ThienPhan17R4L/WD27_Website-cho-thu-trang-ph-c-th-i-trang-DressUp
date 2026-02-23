@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import * as authApi from "@/api/auth";
 import { useNotification } from "@/contexts/NotificationContext";
 import { useAuth } from "@/contexts/AuthContext";
-import logo from '@/assets/logo.svg';
+import { Logo } from "@/components/common/Logo";
 
 function isValidEmail(email: string) {
 	return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -139,30 +139,26 @@ export default function RegisterPage() {
 						<div className="pointer-events-none absolute -inset-14 bg-[radial-gradient(360px_280px_at_65%_30%,rgba(0,0,0,0.14),transparent_65%),radial-gradient(520px_360px_at_18%_72%,rgba(0,0,0,0.12),transparent_70%),radial-gradient(280px_220px_at_84%_76%,rgba(255,255,255,0.16),transparent_60%)]" />
 
 						{/* Header bar */}
-						<div className="relative z-10 flex flex-col gap-4 border-b border-white/15 p-6 md:flex-row md:items-end md:justify-between">
-							<div>
-								<div className="mb-4 flex items-center gap-3">
-									<img
-										src={logo}
-										alt="DressUp logo"
-										className="h-24 w-auto"
-									/>
-									<h1 className="text-4xl font-extrabold leading-none text-white">
-										Register
-									</h1>
-								</div>
-								<p className="mt-2 text-sm text-white/80">
-									Create your account to start renting fashion items.
+						<div className="relative z-10 border-b border-white/15 p-6">
+							<div className="flex items-center justify-between mb-4">
+								<div className="flex-1" />
+								<button
+									type="button"
+									onClick={goLogin}
+									className="cursor-pointer rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
+								>
+									Back to Login
+								</button>
+							</div>
+							<div className="text-center">
+								<Logo size="lg" variant="light" />
+								<h1 className="mt-3 text-2xl font-semibold text-white/90">
+									Create Account
+								</h1>
+								<p className="mt-1 text-sm text-white/70">
+									Start renting fashion items today
 								</p>
 							</div>
-
-							<button
-								type="button"
-								onClick={goLogin}
-								className="cursor-pointer rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
-							>
-								Back to Login
-							</button>
 						</div>
 
 						{/* Content area */}

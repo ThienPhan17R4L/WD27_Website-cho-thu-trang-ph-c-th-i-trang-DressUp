@@ -16,14 +16,16 @@ export type Address = {
 };
 
 export type CreateAddressPayload = {
-  label: string;
+  label?: string;
   receiverName: string;
   receiverPhone: string;
   line1: string;
   ward: string;
   district: string;
   province: string;
+  country?: string;
   postalCode?: string;
+  isDefault?: boolean;
 };
 
 export type UpdateAddressPayload = Partial<CreateAddressPayload>;

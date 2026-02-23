@@ -1,10 +1,25 @@
+export interface Address {
+  receiverName: string;
+  receiverPhone: string;
+  line1: string;
+  ward: string;
+  district: string;
+  province: string;
+  country?: string;
+  postalCode?: string;
+}
+
 export interface User {
   id: string;
   email: string;
   fullName: string;
   phone: string | null;
+  avatarUrl?: string;
+  dob?: string;
+  gender?: "male" | "female" | "other";
   roles: string[]; // ["user"], ["admin"], or ["user", "admin"]
   isEmailVerified: boolean;
+  address?: Address;
   createdAt: string;
   updatedAt: string;
 }

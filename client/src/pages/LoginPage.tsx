@@ -3,7 +3,7 @@ import { FcGoogle } from "react-icons/fc";
 import { FaGithub, FaFacebookF } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
-import logo from '@/assets/logo.svg';
+import { Logo } from "@/components/common/Logo";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Provider = "google" | "github" | "facebook";
@@ -32,7 +32,8 @@ export default function Login() {
   useEffect(() => {
     if (isAuthenticated && user) {
       const isAdmin = user.roles?.includes("admin");
-      const redirectPath = isAdmin ? "/admin" : "/home";
+      const isStaff = user.roles?.includes("staff");
+      const redirectPath = isAdmin ? "/admin" : isStaff ? "/staff" : "/home";
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
@@ -71,9 +72,10 @@ export default function Login() {
       setLoading(true);
       const userData = await login(form.email, form.password);
 
-      // ✅ Role-based redirect: admin → /admin, user → /home
+      // ✅ Role-based redirect: admin → /admin, staff → /staff, user → /home
       const isAdmin = userData.roles.includes("admin");
-      const redirectPath = isAdmin ? "/admin" : "/home";
+      const isStaff = userData.roles.includes("staff");
+      const redirectPath = isAdmin ? "/admin" : isStaff ? "/staff" : "/home";
       navigate(redirectPath, { replace: true });
     } catch (err: any) {
       console.error(err);
@@ -149,15 +151,12 @@ export default function Login() {
           {/* Glass login card */}
           <div className="absolute left-1/2 top-1/2 z-20 w-[min(460px,calc(100%-4rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/25 bg-white/20 p-7 shadow-[0_20px_60px_rgba(0,0,0,0.22)] backdrop-blur-xl">
             {/* Brand */}
-            <div className="mb-4 flex items-center gap-3">
-              <img
-                src={logo}
-                alt="DressUp logo"
-                className="h-24 w-auto"
-              />
-              <h1 className="text-4xl font-extrabold leading-none text-white">
-                Login
+            <div className="mb-6 text-center">
+              <Logo size="lg" variant="light" />
+              <h1 className="mt-3 text-2xl font-semibold text-white/90">
+                Welcome Back
               </h1>
+              <p className="mt-1 text-sm text-white/70">Sign in to your account</p>
             </div>
 
             <form className="space-y-3" onSubmit={handleSubmit} noValidate>

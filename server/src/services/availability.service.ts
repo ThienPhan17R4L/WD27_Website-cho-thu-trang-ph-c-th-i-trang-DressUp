@@ -20,24 +20,51 @@ export const availabilityService = {
     endDate: Date,
     quantity: number = 1
   ): Promise<{ available: boolean; totalStock: number; reserved: number }> {
+    console.log('[Availability] ====================================');
+    console.log('[Availability] CHECK AVAILABILITY');
+    console.log('[Availability] ====================================');
+    console.log('[Availability] Product ID:', productId);
+    console.log('[Availability] Size:', size);
+    console.log('[Availability] Color:', color);
+    console.log('[Availability] Date range:', startDate.toISOString().split('T')[0], 'to', endDate.toISOString().split('T')[0]);
+    console.log('[Availability] Quantity needed:', quantity);
+
     // Get total stock
     const colorFilter = color ? { "variantKey.color": color } : {};
-    const inventory = await InventoryModel.findOne({
+    const query = {
       productId,
       "variantKey.size": size,
       ...colorFilter,
-    });
+    };
+    console.log('[Availability] Inventory query:', JSON.stringify(query));
+
+    const inventory = await InventoryModel.findOne(query);
 
     if (!inventory) {
+      console.log('[Availability] ❌ No inventory found for this variant');
+      console.log('[Availability] Trying to find any inventory for this product...');
+      const anyInventory = await InventoryModel.find({ productId }).limit(5);
+      console.log('[Availability] Available inventory variants:');
+      anyInventory.forEach(inv => {
+        console.log(`  - Size: ${inv.variantKey.size}, Color: ${inv.variantKey.color || 'N/A'}, Stock: ${inv.qtyTotal}`);
+      });
       return { available: false, totalStock: 0, reserved: 0 };
     }
+
+    console.log('[Availability] ✅ Found inventory - Total stock:', inventory.qtyTotal);
 
     // Count overlapping active reservations
     const reserved = await this.countOverlappingReservations(
       productId, size, color, startDate, endDate
     );
 
+    console.log('[Availability] Reserved quantity:', reserved);
+    console.log('[Availability] Available:', inventory.qtyTotal - reserved);
+    console.log('[Availability] Needed:', quantity);
+
     const available = inventory.qtyTotal - reserved >= quantity;
+    console.log('[Availability] Result:', available ? '✅ AVAILABLE' : '❌ NOT AVAILABLE');
+
     return { available, totalStock: inventory.qtyTotal, reserved };
   },
 

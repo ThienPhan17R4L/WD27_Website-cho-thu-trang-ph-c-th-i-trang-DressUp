@@ -28,25 +28,13 @@ const ADMIN_MENU: MenuItem[] = [
     icon: <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h18M3 17h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>,
   },
   {
-    to: "/admin/users", label: "Người dùng",
-    icon: <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.5"/></svg>,
-  },
-  {
     to: "/admin/inventory", label: "Tồn kho",
     icon: <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none"><path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="1.5"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" stroke="currentColor" strokeWidth="1.5"/></svg>,
   },
-  {
-    to: "/admin/returns", label: "Trả hàng",
-    icon: <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none"><path d="M9 14l-5-5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M20 20v-7a4 4 0 0 0-4-4H4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
-  {
-    to: "/admin/coupons", label: "Mã giảm giá",
-    icon: <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z" stroke="currentColor" strokeWidth="1.5"/></svg>,
-  },
-  {
-    to: "/admin/audit-logs", label: "Nhật ký",
-    icon: <svg className={ICON_CLASS} viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-  },
+  // { to: "/admin/users", label: "Người dùng", icon: ... },       // Tạm ẩn
+  // { to: "/admin/returns", label: "Trả hàng", icon: ... },        // Tạm ẩn
+  // { to: "/admin/coupons", label: "Mã giảm giá", icon: ... },     // Tạm ẩn
+  // { to: "/admin/audit-logs", label: "Nhật ký", icon: ... },      // Tạm ẩn
 ];
 
 const STAFF_MENU: MenuItem[] = [

@@ -74,4 +74,14 @@ export const ProductService = {
     if (!doc) throw new HttpError(404, "Product not found");
     return doc;
   },
+
+  async getTagSuggestions(query: string): Promise<string[]> {
+    const allTags = await productRepo.getDistinctTags();
+    if (!query) return allTags.slice(0, 10);
+
+    const filtered = allTags
+      .filter(tag => tag.toLowerCase().includes(query.toLowerCase()))
+      .sort();
+    return filtered.slice(0, 10);
+  },
 };

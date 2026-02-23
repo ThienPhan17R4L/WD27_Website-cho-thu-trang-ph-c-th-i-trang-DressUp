@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { ordersApi, type Order } from "@/api/orders.api";
 import { formatVND } from "@/utils/formatCurrency";
+import { BRAND } from "@/pages/CategoriesPage";
 
 export default function ActiveRentalsPage() {
   const { data, isLoading } = useQuery({
@@ -83,7 +85,10 @@ function RentalCard({ rental }: RentalCardProps) {
   const isOverdue = daysLeft !== null && daysLeft < 0;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <Link
+      to={`/orders/${rental._id}`}
+      className="block rounded-lg border border-slate-200 bg-white p-6 shadow-sm hover:border-slate-300 hover:shadow-md transition-all"
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
@@ -174,7 +179,14 @@ function RentalCard({ rental }: RentalCardProps) {
             muộn là <strong>1.5x</strong> giá thuê mỗi ngày.
           </div>
         )}
+
+        {/* View Detail Link */}
+        <div className="mt-4 pt-3 border-t border-slate-100 text-right">
+          <span className="text-xs font-medium hover:underline" style={{ color: BRAND.blushRose }}>
+            Xem chi tiết →
+          </span>
+        </div>
       </div>
-    </div>
+    </Link>
   );
 }

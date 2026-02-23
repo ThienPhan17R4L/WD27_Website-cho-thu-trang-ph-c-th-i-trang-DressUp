@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { PaginationBar } from "@/components/common/PaginationBar";
 import { useProducts } from "@/hooks/useProducts";
+import { useCategories } from "@/hooks/useCategories";
 
 import { ProductTopBar } from "@/components/products/ProductTopBar";
 import { OccasionsFilter } from "@/components/products/OccasionsFilter";
@@ -14,21 +16,57 @@ const PRICE_MIN = 0;
 const PRICE_MAX = 3_000_000; // VND
 
 export default function ProductsPage() {
-  const [page, setPage] = useState(1);
-  const [sort, setSort] = useState("-createdAt");
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // search on top bar
-  const [q, setQ] = useState("");
+  // Read all filters from URL
+  const page = Number(searchParams.get("page")) || 1;
+  const sort = searchParams.get("sort") || "-createdAt";
+  const q = searchParams.get("q") || "";
+  const categorySlug = searchParams.get("category") || "";
+  const brand = searchParams.get("brand") || "";
+  const tag = searchParams.get("tag") || "";
+  const status = (searchParams.get("status") || "active") as "active" | "archived";
+  const priceMin = Number(searchParams.get("priceMin")) || PRICE_MIN;
+  const priceMax = Number(searchParams.get("priceMax")) || PRICE_MAX;
 
-  // filters
-  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
-  const [brand, setBrand] = useState("");
-  const [tag, setTag] = useState("");
-  const [status, setStatus] = useState<"active" | "archived">("active");
+  // Resolve category slug → categoryId
+  const { data: categories } = useCategories();
+  const categoryId = useMemo(() => {
+    if (!categorySlug || !categories) return undefined;
+    const found = categories.find((c) => c.slug === categorySlug);
+    return found?._id;
+  }, [categorySlug, categories]);
 
-  // ✅ applied price (chỉ đổi khi bấm FILTER trong PriceFilter)
-  const [priceMin, setPriceMin] = useState(PRICE_MIN);
-  const [priceMax, setPriceMax] = useState(PRICE_MAX);
+  // Helper to update URL params (resets page to 1 unless updating page itself)
+  const updateParams = useCallback(
+    (updates: Record<string, string | undefined>, resetPage = true) => {
+      setSearchParams((prev) => {
+        const p = new URLSearchParams(prev);
+        if (resetPage) p.delete("page");
+        for (const [key, value] of Object.entries(updates)) {
+          if (value && value !== defaultValue(key)) {
+            p.set(key, value);
+          } else {
+            p.delete(key);
+          }
+        }
+        return p;
+      }, { replace: true });
+    },
+    [setSearchParams],
+  );
+
+  // Default values — don't show in URL if matching default
+  function defaultValue(key: string): string {
+    switch (key) {
+      case "sort": return "-createdAt";
+      case "status": return "active";
+      case "page": return "1";
+      case "priceMin": return String(PRICE_MIN);
+      case "priceMax": return String(PRICE_MAX);
+      default: return "";
+    }
+  }
 
   const params = useMemo(
     () => ({
@@ -55,94 +93,55 @@ export default function ProductsPage() {
           {/* TOP BAR: sort + search */}
           <ProductTopBar
             sort={sort}
-            onSortChange={(v) => {
-              setSort(v);
-              setPage(1);
-            }}
+            onSortChange={(v) => updateParams({ sort: v })}
             q={q}
-            onSearchChange={(v) => {
-              setQ(v);
-              setPage(1);
-            }}
-            onClearSearch={() => {
-              setQ("");
-              setPage(1);
-            }}
+            onSearchChange={(v) => updateParams({ q: v })}
+            onClearSearch={() => updateParams({ q: undefined })}
           />
 
           <div className="grid gap-10 lg:grid-cols-[360px_1fr]">
             {/* FILTER BOXES */}
             <div className="space-y-8">
               <OccasionsFilter
-                categoryId={categoryId}
-                onChange={(id) => {
-                  setCategoryId(id);
-                  setPage(1);
-                }}
+                categorySlug={categorySlug}
+                onChange={(slug) => updateParams({ category: slug })}
               />
 
-              {/* ✅ price filter: bấm FILTER mới apply */}
               <PriceFilter
                 min={PRICE_MIN}
                 max={PRICE_MAX}
                 appliedMin={priceMin}
                 appliedMax={priceMax}
-                onApply={({ min, max }) => {
-                  setPriceMin(min);
-                  setPriceMax(max);
-                  setPage(1);
-                }}
-                onClear={() => {
-                  setPriceMin(PRICE_MIN);
-                  setPriceMax(PRICE_MAX);
-                  setPage(1);
-                }}
+                onApply={({ min, max }) =>
+                  updateParams({ priceMin: String(min), priceMax: String(max) })
+                }
+                onClear={() =>
+                  updateParams({ priceMin: undefined, priceMax: undefined })
+                }
               />
 
               <InlineInputFilter
                 title="Brand"
                 value={brand}
                 placeholder="Brand"
-                onChange={(v) => {
-                  setBrand(v);
-                  setPage(1);
-                }}
+                onChange={(v) => updateParams({ brand: v })}
               />
 
               <InlineInputFilter
                 title="Tag"
                 value={tag}
                 placeholder="Tag"
-                onChange={(v) => {
-                  setTag(v);
-                  setPage(1);
-                }}
+                onChange={(v) => updateParams({ tag: v })}
               />
 
               <StatusFilter
                 value={status}
-                onChange={(v) => {
-                  setStatus(v);
-                  setPage(1);
-                }}
+                onChange={(v) => updateParams({ status: v })}
               />
 
               <button
                 type="button"
-                onClick={() => {
-                  setQ("");
-                  setCategoryId(undefined);
-                  setBrand("");
-                  setTag("");
-                  setStatus("active");
-                  setSort("-createdAt");
-
-                  // ✅ reset VND range
-                  setPriceMin(PRICE_MIN);
-                  setPriceMax(PRICE_MAX);
-
-                  setPage(1);
-                }}
+                onClick={() => setSearchParams({}, { replace: true })}
                 className="h-12 w-full bg-[rgb(213,176,160)] text-white text-[12px] font-semibold tracking-[0.22em] uppercase"
               >
                 Clear filters
@@ -165,7 +164,7 @@ export default function ProductsPage() {
                   <PaginationBar
                     page={data.page}
                     totalPages={data.totalPages}
-                    onChange={(p) => setPage(p)}
+                    onChange={(p) => updateParams({ page: String(p) }, false)}
                   />
                 </>
               )}

@@ -32,4 +32,10 @@ export const ProductController = {
     const doc = await ProductService.remove(req.params.id as StringValue);
     return res.json({ message: "Deleted", deleted: doc });
   },
+
+  async getTagSuggestions(req: Request, res: Response) {
+    const { q } = req.query;
+    const tags = await ProductService.getTagSuggestions((q as string) || "");
+    return res.json({ tags });
+  },
 };

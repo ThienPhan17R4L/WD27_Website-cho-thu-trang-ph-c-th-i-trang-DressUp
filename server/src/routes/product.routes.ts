@@ -21,6 +21,12 @@ productRouter.get("/", asyncHandler(ProductController.list));
 productRouter.post("/", validateBody(createProductSchema), asyncHandler(ProductController.create));
 
 /**
+ * GET tag suggestions
+ * GET /api/products/tags/suggestions?q=query
+ */
+productRouter.get("/tags/suggestions", asyncHandler(ProductController.getTagSuggestions));
+
+/**
  * READ by slug (đặt trước :id để tránh conflict)
  * GET /api/products/slug/:slug
  */

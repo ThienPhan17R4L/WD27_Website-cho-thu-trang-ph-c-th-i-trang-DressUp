@@ -174,6 +174,10 @@ export class ProductRepository {
   async deleteById(id: string) {
     return ProductModel.findByIdAndDelete(id).lean();
   }
+
+  async getDistinctTags(): Promise<string[]> {
+    return ProductModel.distinct("tags");
+  }
 }
 
 function escapeRegExp(s: string) {

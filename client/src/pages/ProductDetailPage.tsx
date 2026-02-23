@@ -104,7 +104,7 @@ export default function ProductDetailPage() {
     <div className="bg-white">
       <Container>
         <div className="pt-24 pb-10 md:pt-28 lg:pt-32">
-          <div className="grid gap-12 lg:grid-cols-[1fr_1fr]">
+          <div className="grid gap-12 lg:grid-cols-[5fr_7fr]">
             {/* Left: gallery */}
             <ProductGallery images={product.images} />
 
@@ -164,7 +164,14 @@ export default function ProductDetailPage() {
 
               {/* Color */}
               <div className="mt-6">
-                <div className="text-[13px] font-medium text-slate-700">Color</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-[13px] font-medium text-slate-700">Color</div>
+                  {color && (
+                    <div className="text-[13px] text-slate-500">
+                      — <span className="font-medium text-slate-800">{color}</span>
+                    </div>
+                  )}
+                </div>
                 <div className="mt-3">
                   <ColorSwatches colors={colors} value={color} onChange={setColor} />
                 </div>
@@ -206,25 +213,33 @@ export default function ProductDetailPage() {
 
               {/* Start/End giống ảnh */}
               <div className="mt-7">
-                <div className="text-[13px] font-medium text-slate-700 mb-3">Or choose custom dates</div>
+                <div className="text-[13px] font-medium text-slate-700 mb-3">
+                  Or choose custom dates <span className="text-red-600">*</span>
+                </div>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
-                  <div className="text-[13px] font-medium text-slate-700">Start</div>
+                  <div className="text-[13px] font-medium text-slate-700">
+                    Start <span className="text-red-600">*</span>
+                  </div>
                   <input
                     value={start}
                     onChange={(e) => setStart(e.target.value)}
-                    placeholder="Start"
+                    placeholder="Chọn ngày bắt đầu"
                     type="date"
+                    required
                     className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
                   />
                 </div>
                 <div>
-                  <div className="text-[13px] font-medium text-slate-700">End</div>
+                  <div className="text-[13px] font-medium text-slate-700">
+                    End <span className="text-red-600">*</span>
+                  </div>
                   <input
                     value={end}
                     onChange={(e) => setEnd(e.target.value)}
-                    placeholder="End"
+                    placeholder="Chọn ngày kết thúc"
                     type="date"
+                    required
                     className="mt-2 h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
                   />
                 </div>
@@ -234,6 +249,11 @@ export default function ProductDetailPage() {
                   {dateError}
                 </div>
               )}
+              {!start || !end ? (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                  ⚠️ Vui lòng chọn ngày thuê trước khi thêm vào giỏ hàng
+                </div>
+              ) : null}
               </div>
 
               {/* Rental Price Info */}
@@ -270,7 +290,15 @@ export default function ProductDetailPage() {
                   style={{ backgroundColor: "rgba(213,176,160,0.28)", color: "rgba(15,23,42,0.55)" }}
                   disabled={!pickedVariant || !start || !end || addToCart.isPending}
                   onClick={() => {
-                    if (!pickedVariant) return;
+                    if (!pickedVariant) {
+                      showNotification("error", "Vui lòng chọn size và color");
+                      return;
+                    }
+
+                    if (!start || !end) {
+                      showNotification("error", "Vui lòng chọn ngày bắt đầu và kết thúc thuê");
+                      return;
+                    }
 
                     // Validate dates before adding to cart
                     const validation = validateRentalDates(start, end);
@@ -279,16 +307,26 @@ export default function ProductDetailPage() {
                       return;
                     }
 
-                    addToCart.mutate({
-                      productId: product._id,
-                      rentalStart: toISODate(start),
-                      rentalEnd: toISODate(end),
-                      variant: {
-                        size: (pickedVariant as any).size,
-                        color: (pickedVariant as any).color,
+                    addToCart.mutate(
+                      {
+                        productId: product._id,
+                        rentalStart: toISODate(start),
+                        rentalEnd: toISODate(end),
+                        variant: {
+                          size: (pickedVariant as any).size,
+                          color: (pickedVariant as any).color,
+                        },
+                        quantity: qty,
                       },
-                      quantity: qty,
-                    });
+                      {
+                        onSuccess: () => {
+                          showNotification("success", "Đã thêm vào giỏ hàng");
+                        },
+                        onError: (error: any) => {
+                          showNotification("error", error.response?.data?.message || "Không thể thêm vào giỏ hàng");
+                        },
+                      }
+                    );
                   }}
                 >
                   {addToCart.isPending ? "ADDING..." : "BUY NOW"}

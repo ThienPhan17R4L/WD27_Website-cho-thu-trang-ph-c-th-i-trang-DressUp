@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Container } from "@/components/common/Container";
@@ -48,19 +49,6 @@ export default function OrderDetailPage() {
     },
   });
 
-  // Activate rental mutation
-  const activateRentalMutation = useMutation({
-    mutationFn: (orderId: string) => ordersApi.activateRental(orderId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["order", id] });
-      queryClient.invalidateQueries({ queryKey: ["orders"] });
-      showNotification("success", "Đã kích hoạt thuê thành công!");
-    },
-    onError: (error: any) => {
-      showNotification("error", error.message || "Kích hoạt thuê thất bại");
-    },
-  });
-
   // Cancel order mutation
   const cancelOrderMutation = useMutation({
     mutationFn: ({ orderId, reason }: { orderId: string; reason?: string }) =>
@@ -75,31 +63,17 @@ export default function OrderDetailPage() {
     },
   });
 
-  function handleConfirmDelivery() {
-    if (
-      confirm(
-        `Xác nhận bạn đã nhận được đơn hàng ${order?.orderNumber}?\nTrạng thái sẽ chuyển sang "Đã giao hàng".`
-      )
-    ) {
-      deliverOrderMutation.mutate(id!);
-    }
-  }
+  const [confirmModal, setConfirmModal] = useState<{
+    type: "deliver" | "cancel";
+    cancelReason: string;
+  } | null>(null);
 
-  function handleActivateRental() {
-    if (
-      confirm(
-        `Xác nhận kích hoạt thuê cho đơn hàng ${order?.orderNumber}?\nThời gian thuê sẽ bắt đầu tính từ bây giờ.`
-      )
-    ) {
-      activateRentalMutation.mutate(id!);
-    }
+  function handleConfirmDelivery() {
+    setConfirmModal({ type: "deliver", cancelReason: "" });
   }
 
   function handleCancelOrder() {
-    const reason = prompt("Lý do hủy đơn hàng (không bắt buộc):");
-    if (reason !== null) {
-      cancelOrderMutation.mutate({ orderId: id!, reason: reason || undefined });
-    }
+    setConfirmModal({ type: "cancel", cancelReason: "" });
   }
 
   if (isLoading) {
@@ -134,7 +108,6 @@ export default function OrderDetailPage() {
   }
 
   const canConfirmDelivery = order.status === "shipping";
-  const canActivateRental = order.status === "delivered";
   const canCancel = ["pending", "pending_payment", "confirmed"].includes(order.status);
 
   return (
@@ -182,25 +155,16 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Action Buttons */}
-          {(canConfirmDelivery || canActivateRental || canCancel) && (
+          {(canConfirmDelivery || canCancel) && (
             <div className="mb-8 flex flex-wrap gap-3">
               {canConfirmDelivery && (
                 <button
                   onClick={handleConfirmDelivery}
                   disabled={deliverOrderMutation.isPending}
-                  className="px-6 py-2.5 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {deliverOrderMutation.isPending ? "Đang xử lý..." : "✓ Đã nhận hàng"}
-                </button>
-              )}
-              {canActivateRental && (
-                <button
-                  onClick={handleActivateRental}
-                  disabled={activateRentalMutation.isPending}
-                  className="px-6 py-2.5 rounded-md text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2.5 rounded-md text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: BRAND.blushRose }}
                 >
-                  {activateRentalMutation.isPending ? "Đang xử lý..." : "Kích hoạt thuê"}
+                  {deliverOrderMutation.isPending ? "Đang xử lý..." : "✓ Đã nhận hàng"}
                 </button>
               )}
               {canCancel && (
@@ -507,6 +471,90 @@ export default function OrderDetailPage() {
           </div>
         </div>
       </Container>
+
+      {/* Confirmation Modal */}
+      {confirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl">
+            {confirmModal.type === "deliver" ? (
+              <>
+                <h3 className="text-lg font-semibold text-slate-900">Xác nhận đã nhận hàng</h3>
+                <p className="mt-3 text-sm text-slate-600">
+                  Xác nhận bạn đã nhận được đơn hàng{" "}
+                  <strong>#{order?.orderNumber}</strong>?{" "}
+                  Trạng thái sẽ chuyển sang &quot;Đã giao hàng&quot;.
+                </p>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal(null)}
+                    className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      deliverOrderMutation.mutate(id!);
+                      setConfirmModal(null);
+                    }}
+                    disabled={deliverOrderMutation.isPending}
+                    className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                    style={{ backgroundColor: BRAND.blushRose }}
+                  >
+                    Xác nhận
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-slate-900">Hủy đơn hàng</h3>
+                <p className="mt-3 text-sm text-slate-600">
+                  Bạn có chắc muốn hủy đơn hàng{" "}
+                  <strong>#{order?.orderNumber}</strong>?
+                </p>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Lý do hủy (không bắt buộc)
+                  </label>
+                  <textarea
+                    value={confirmModal.cancelReason}
+                    onChange={(e) =>
+                      setConfirmModal({ ...confirmModal, cancelReason: e.target.value })
+                    }
+                    rows={3}
+                    placeholder="Nhập lý do hủy đơn hàng..."
+                    className="mt-1.5 w-full rounded-lg border border-slate-300 bg-[#f6f3ef] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(213,176,160,0.5)]"
+                  />
+                </div>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmModal(null)}
+                    className="px-5 py-2.5 rounded-lg text-sm font-medium text-slate-700 border border-slate-300 hover:bg-slate-50"
+                  >
+                    Quay lại
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      cancelOrderMutation.mutate({
+                        orderId: id!,
+                        reason: confirmModal.cancelReason || undefined,
+                      });
+                      setConfirmModal(null);
+                    }}
+                    disabled={cancelOrderMutation.isPending}
+                    className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Hủy đơn hàng
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -165,16 +165,6 @@ export default function AdminOrdersPage() {
                         >
                           {ORDER_STATUS_LABELS[order.status] || order.status}
                         </span>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                            order.paymentStatus === "paid"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {paymentStatusLabels[order.paymentStatus] ||
-                            order.paymentStatus}
-                        </span>
                       </div>
 
                       <div className="mt-2 text-sm text-slate-600">

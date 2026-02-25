@@ -1,5 +1,6 @@
 import { OrderModel, type OrderDoc, type PaymentMethod } from "../models/Order";
 import { ReturnModel } from "../models/Return";
+import { InventoryModel } from "../models/Inventory";
 import { CartService } from "./cart.service";
 import { InventoryService } from "./inventory.service";
 import { availabilityService } from "./availability.service";
@@ -58,6 +59,7 @@ export const OrderService = {
       paymentMethod: PaymentMethod;
       notes?: string;
       couponCode?: string;
+      itemIds?: string[];
     }
   ) {
     // 1. Get cart
@@ -66,13 +68,22 @@ export const OrderService = {
       throw new BadRequestError("EMPTY_CART", "Cart is empty");
     }
 
+    // 1.1 If itemIds provided, filter to only selected items
+    const orderItems = payload.itemIds && payload.itemIds.length > 0
+      ? cart.items.filter((item: any) => payload.itemIds!.includes(item._id?.toString()))
+      : cart.items;
+
+    if (orderItems.length === 0) {
+      throw new BadRequestError("EMPTY_SELECTION", "No items selected for checkout");
+    }
+
     // 2. Check availability for all items (time-based)
     console.log('[Order] ========================================');
     console.log('[Order] CHECKING AVAILABILITY');
     console.log('[Order] ========================================');
-    console.log('[Order] Cart items count:', cart.items.length);
+    console.log('[Order] Cart items count:', orderItems.length);
 
-    for (const item of cart.items!) {
+    for (const item of orderItems) {
       console.log(`[Order] Checking item: ${item.name}`);
       console.log(`[Order]   - Product ID: ${item.productId}`);
       console.log(`[Order]   - Variant: ${item.variant?.size} ${item.variant?.color || ''}`);
@@ -122,10 +133,24 @@ export const OrderService = {
 
     console.log('[Order] ✅ All items available');
 
-    // 3. Calculate totals
-    const subtotal = cart.totals?.subtotal || 0;
-    const discount = cart.totals?.discount || 0;
-    const shippingFee = cart.totals?.shippingFee || 0;
+    // 3. Calculate totals (from selected items only if partial checkout)
+    const isPartialCheckout = payload.itemIds && payload.itemIds.length > 0;
+    let subtotal: number;
+    let discount: number;
+    let shippingFee: number;
+
+    if (isPartialCheckout) {
+      subtotal = orderItems.reduce(
+        (sum: number, item: any) => sum + (item.lineTotal ?? (item.rental?.price || 0) * (item.rental?.days || 1) * item.quantity),
+        0
+      );
+      discount = 0;
+      shippingFee = 0;
+    } else {
+      subtotal = cart.totals?.subtotal || 0;
+      discount = cart.totals?.discount || 0;
+      shippingFee = cart.totals?.shippingFee || 0;
+    }
 
     // 3.1 Service fee
     const serviceFee = Math.round(subtotal * (env.SERVICE_FEE_PERCENT / 100));
@@ -140,8 +165,8 @@ export const OrderService = {
     const total = Math.max(0, subtotal - discount - couponDiscount + shippingFee + serviceFee);
 
     // 3.3 Calculate total deposit
-    const totalDeposit = cart.items!.reduce(
-      (sum, item) => sum + (item.deposit || 0) * item.quantity,
+    const totalDeposit = orderItems.reduce(
+      (sum: number, item: any) => sum + (item.deposit || 0) * item.quantity,
       0
     );
 
@@ -156,7 +181,7 @@ export const OrderService = {
     const orderData: any = {
       userId,
       orderNumber: generateOrderNumber(),
-      items: cart.items.map((item: any) => ({
+      items: orderItems.map((item: any) => ({
         productId: item.productId,
         name: item.name,
         image: item.image,
@@ -583,6 +608,34 @@ export const OrderService = {
       },
       { new: true, upsert: true, setDefaultsOnInsert: true }
     );
+
+    // Update inventory based on damage assessment
+    for (const item of payload.items) {
+      const orderItem = order.items[item.orderItemIndex];
+      if (!orderItem) continue;
+      const qty = orderItem.quantity || 1;
+      const productId = orderItem.productId?.toString();
+      const size = orderItem.variant?.size;
+      if (!productId || !size) continue;
+
+      const inventory = await InventoryModel.findOne({
+        productId,
+        "variantKey.size": size,
+        ...(orderItem.variant?.color ? { "variantKey.color": orderItem.variant.color } : {}),
+      });
+      if (!inventory) continue;
+
+      if (item.conditionAfter === "destroyed") {
+        // Permanently lost — mark as lost (do NOT return to available)
+        inventory.qtyLost = Math.min(inventory.qtyLost + qty, inventory.qtyTotal);
+        await inventory.save();
+      } else if (item.conditionAfter.startsWith("damage_")) {
+        // Damaged but repairable — move to repair queue
+        inventory.qtyInRepair += qty;
+        await inventory.save();
+      }
+      // "new" / "good" → item returns to available automatically when reservation lifts
+    }
 
     order.depositRefunded = depositRefundAmount;
     order.inspectedAt = new Date();

@@ -39,6 +39,7 @@ export type CreateOrderPayload = {
   paymentMethod: "cod" | "vnpay" | "momo" | "zalopay" | "mock";
   notes?: string;
   couponCode?: string;
+  itemIds?: string[];
 };
 
 export type InspectionItemPayload = {

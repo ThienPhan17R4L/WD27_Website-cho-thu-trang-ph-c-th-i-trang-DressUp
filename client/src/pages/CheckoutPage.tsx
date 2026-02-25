@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { useCart } from "@/hooks/useCart";
@@ -41,19 +41,51 @@ export default function CheckoutPage() {
 
   const selectedAddress = addresses.find((a) => a._id === selectedAddressId);
 
-  const totals = cart?.totals || {
-    subtotal: 0,
-    discount: 0,
-    shippingFee: 0,
-    grandTotal: 0,
-  };
+  // Read selected item IDs from sessionStorage (set by CartSummary or "Thuê ngay")
+  const checkoutItemIds = useMemo<string[] | null>(() => {
+    try {
+      const raw = sessionStorage.getItem("checkout_item_ids");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  }, []);
 
-  // Calculate total deposit from cart items
-  const totalDeposit = cart?.items?.reduce(
-    (sum: number, item: any) =>
-      sum + (item.deposit || 0) * (item.quantity || 1),
+  // Filter cart items by selection; if no selection stored, use all items
+  const checkoutItems = useMemo(() => {
+    if (!cart?.items) return [];
+    if (!checkoutItemIds) return cart.items;
+    return cart.items.filter((it: any) => checkoutItemIds.includes(it._id));
+  }, [cart?.items, checkoutItemIds]);
+
+  // Compute totals from checkout items only
+  const selectedSubtotal = checkoutItems.reduce(
+    (sum: number, it: any) => sum + (it.lineTotal ?? 0),
     0
-  ) || 0;
+  );
+  const selectedDeposit = checkoutItems.reduce(
+    (sum: number, it: any) => sum + (it.deposit || 0) * (it.quantity || 1),
+    0
+  );
+
+  const cartTotals = cart?.totals || { subtotal: 0, discount: 0, shippingFee: 0, grandTotal: 0, serviceFee: 0 };
+  const shippingFee = cartTotals.shippingFee ?? 0;
+  // If partial selection, recompute; otherwise use server totals
+  const hasPartialSelection = checkoutItemIds !== null;
+  const displaySubtotal = hasPartialSelection ? selectedSubtotal : (cartTotals.subtotal ?? 0);
+  const displayDiscount = hasPartialSelection ? 0 : (cartTotals.discount ?? 0);
+  const displayServiceFee = hasPartialSelection
+    ? Math.round(selectedSubtotal * 0.05)
+    : (cartTotals.serviceFee ?? 0);
+  const displayDeposit = hasPartialSelection ? selectedDeposit : checkoutItems.reduce(
+    (sum: number, it: any) => sum + (it.deposit || 0) * (it.quantity || 1),
+    0
+  );
+  const displayGrandTotal = hasPartialSelection
+    ? Math.max(0, displaySubtotal - displayDiscount + shippingFee + displayServiceFee)
+    : (cartTotals.grandTotal ?? 0);
 
   const handleCreateAddress = async (data: any) => {
     try {
@@ -81,11 +113,11 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Validate rental dates in cart items
-    const itemsWithoutDates = cart?.items?.filter(
+    // Validate rental dates in checkout items
+    const itemsWithoutDates = checkoutItems.filter(
       (item: any) => !item.rental?.startDate || !item.rental?.endDate
     );
 
@@ -112,7 +144,7 @@ export default function CheckoutPage() {
     }
 
     try {
-      const order = await createOrder.mutateAsync({
+      const orderPayload: any = {
         shippingAddress: {
           receiverName: selectedAddress.receiverName,
           receiverPhone: selectedAddress.receiverPhone,
@@ -124,7 +156,17 @@ export default function CheckoutPage() {
         },
         paymentMethod: form.paymentMethod,
         notes: form.notes.trim(),
-      });
+      };
+
+      // Pass selected item IDs to backend if partial checkout
+      if (checkoutItemIds && checkoutItemIds.length > 0) {
+        orderPayload.itemIds = checkoutItemIds;
+      }
+
+      const order = await createOrder.mutateAsync(orderPayload);
+
+      // Clear sessionStorage after successful order
+      sessionStorage.removeItem("checkout_item_ids");
 
       // Handle MoMo payment (Real UAT)
       if (form.paymentMethod === "momo") {
@@ -136,7 +178,13 @@ export default function CheckoutPage() {
             { orderId: order._id }
           );
 
-          // Redirect to MoMo payment page
+          // TODO: remove this workaround once MoMo IPN callback is working
+          try {
+            await apiPost(`/payment/mock/${order._id}/success`, {});
+          } catch (e) {
+            console.warn("[Checkout] Auto-confirm workaround failed:", e);
+          }
+
           console.log("[Checkout] Redirecting to MoMo:", payment.payUrl);
           window.location.href = payment.payUrl;
         } catch (paymentError: any) {
@@ -147,17 +195,17 @@ export default function CheckoutPage() {
       }
 
       // For COD and other payment methods
-      showNotification("success", `Order created successfully! Order #${order.orderNumber}`);
+      showNotification("success", `Đặt hàng thành công! Đơn hàng #${order.orderNumber}`);
       navigate("/orders");
     } catch (error: any) {
-      showNotification("error", error.response?.data?.message || "Failed to create order");
+      showNotification("error", error.response?.data?.message || "Không thể tạo đơn hàng. Vui lòng thử lại.");
     }
   };
 
   if (isLoading) {
     return (
       <Container>
-        <div className="pt-24 pb-10 text-sm text-slate-500">Loading...</div>
+        <div className="pt-24 pb-10 text-sm text-slate-500">Đang tải...</div>
       </Container>
     );
   }
@@ -167,13 +215,13 @@ export default function CheckoutPage() {
       <Container>
         <div className="pt-24 pb-10">
           <div className="text-center text-slate-500">
-            <p>Your cart is empty</p>
+            <p>Giỏ hàng của bạn trống</p>
             <button
               onClick={() => navigate("/products")}
               className="mt-4 text-sm underline"
               style={{ color: ACCENT }}
             >
-              Continue shopping
+              Tiếp tục mua sắm
             </button>
           </div>
         </div>
@@ -181,17 +229,17 @@ export default function CheckoutPage() {
     );
   }
 
-  // Check for items without rental dates
-  const itemsWithoutDates = cart?.items?.filter(
+  // Check for items without rental dates in checkout items
+  const itemsWithoutDates = checkoutItems.filter(
     (item: any) => !item.rental?.startDate || !item.rental?.endDate
-  ) || [];
+  );
 
   return (
     <div className="bg-white">
       <Container>
         <div className="pt-24 pb-10 md:pt-28 lg:pt-32">
           <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
-            Checkout
+            Thanh toán
           </div>
 
           {/* Warning for items without rental dates */}
@@ -227,7 +275,7 @@ export default function CheckoutPage() {
             {/* Left: Form */}
             <div>
               <div className="text-lg font-semibold text-slate-900">
-                Shipping Information
+                Thông tin giao hàng
               </div>
 
               {/* Address Section */}
@@ -276,7 +324,7 @@ export default function CheckoutPage() {
 
               <div className="mt-10">
                 <div className="text-lg font-semibold text-slate-900">
-                  Payment Method
+                  Phương thức thanh toán
                 </div>
 
                 <div className="mt-6 space-y-3">
@@ -300,7 +348,7 @@ export default function CheckoutPage() {
                       />
                       <span className="text-sm text-slate-700">
                         {method === "cod"
-                          ? "Cash on Delivery (COD)"
+                          ? "Thanh toán khi nhận hàng (COD)"
                           : method.toUpperCase()}
                       </span>
                     </label>
@@ -310,7 +358,7 @@ export default function CheckoutPage() {
 
               <div className="mt-10">
                 <label className="text-[13px] font-medium text-slate-700">
-                  Order Notes (Optional)
+                  Ghi chú đơn hàng (Tùy chọn)
                 </label>
                 <textarea
                   value={form.notes}
@@ -325,47 +373,90 @@ export default function CheckoutPage() {
             <div>
               <div className="bg-[#f6f3ef] p-7 ring-1 ring-slate-200">
                 <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-900">
-                  Order Summary
+                  Tóm tắt đơn hàng
                 </div>
 
-                <div className="mt-6 space-y-4 text-sm text-slate-700">
+                {/* Item list */}
+                {checkoutItems.length > 0 && (
+                  <div className="mt-5 space-y-3">
+                    {checkoutItems.map((item: any) => (
+                      <div key={item._id} className="flex items-start gap-3">
+                        {item.image && (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-14 w-14 flex-shrink-0 rounded object-cover border border-slate-200"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-semibold text-slate-800 line-clamp-2">
+                            {item.name}
+                          </div>
+                          {(item.variant?.size || item.variant?.color) && (
+                            <div className="mt-0.5 text-xs text-slate-500">
+                              {[item.variant.size, item.variant.color].filter(Boolean).join(" / ")}
+                            </div>
+                          )}
+                          {item.rental?.startDate && item.rental?.endDate && (
+                            <div className="mt-0.5 text-xs text-slate-400">
+                              {new Date(item.rental.startDate).toLocaleDateString("vi-VN")}
+                              {" – "}
+                              {new Date(item.rental.endDate).toLocaleDateString("vi-VN")}
+                              {item.rental.days ? ` (${item.rental.days} ngày)` : ""}
+                            </div>
+                          )}
+                          <div className="mt-1 text-xs font-medium" style={{ color: ACCENT }}>
+                            {typeof item.lineTotal === "number" ? formatVND(item.lineTotal) : "—"}
+                            {item.quantity > 1 && (
+                              <span className="ml-1 text-slate-400">x{item.quantity}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-6 space-y-4 text-sm text-slate-700 border-t border-slate-300 pt-5">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Subtotal</span>
+                    <span className="text-slate-500">Tạm tính</span>
                     <span className="font-semibold">
-                      {formatVND(totals.subtotal)}
+                      {formatVND(displaySubtotal)}
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Discount</span>
-                    <span className="font-semibold">
-                      -{formatVND(totals.discount)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Shipping</span>
-                    <span className="font-semibold">
-                      {formatVND(totals.shippingFee)}
-                    </span>
-                  </div>
-
-                  {totals.serviceFee > 0 && (
+                  {displayDiscount > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Phí dịch vụ (5%)</span>
+                      <span className="text-slate-500">Giảm giá</span>
                       <span className="font-semibold">
-                        {formatVND(totals.serviceFee)}
+                        -{formatVND(displayDiscount)}
                       </span>
                     </div>
                   )}
 
-                  {totalDeposit > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Vận chuyển</span>
+                    <span className="font-semibold">
+                      {formatVND(shippingFee)}
+                    </span>
+                  </div>
+
+                  {displayServiceFee > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Phí dịch vụ (5%)</span>
+                      <span className="font-semibold">
+                        {formatVND(displayServiceFee)}
+                      </span>
+                    </div>
+                  )}
+
+                  {displayDeposit > 0 && (
                     <div className="flex items-center justify-between">
                       <span className="text-orange-600 font-medium">
-                        Deposit (Refundable)
+                        Tiền đặt cọc (Hoàn trả)
                       </span>
                       <span className="text-orange-600 font-medium">
-                        {formatVND(totalDeposit)}
+                        {formatVND(displayDeposit)}
                       </span>
                     </div>
                   )}
@@ -378,11 +469,11 @@ export default function CheckoutPage() {
                       className="text-xl font-semibold"
                       style={{ color: ACCENT }}
                     >
-                      {formatVND(totals.grandTotal + totalDeposit)}
+                      {formatVND(displayGrandTotal + displayDeposit)}
                     </span>
                   </div>
 
-                  {totalDeposit > 0 && (
+                  {displayDeposit > 0 && (
                     <div className="mt-2 text-xs text-slate-600">
                       * Bao gồm tiền thuê và tiền cọc hoàn trả
                     </div>
@@ -391,7 +482,7 @@ export default function CheckoutPage() {
 
                 {/* Late fee warning */}
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                  ℹ️ <strong>Late return fee:</strong> 1.5x daily rate per day overdue
+                  ℹ️ <strong>Phí trả trễ:</strong> 1,5x giá thuê mỗi ngày trễ hạn
                 </div>
 
                 <button
@@ -400,12 +491,11 @@ export default function CheckoutPage() {
                   className="mt-7 h-12 w-full text-[12px] font-semibold tracking-[0.22em] uppercase text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ backgroundColor: ACCENT }}
                 >
-                  {createOrder.isPending ? "PLACING ORDER..." : "PLACE ORDER"}
+                  {createOrder.isPending ? "ĐANG ĐẶT HÀNG..." : "ĐẶT HÀNG"}
                 </button>
 
                 <div className="mt-6 text-xs leading-6 text-slate-500">
-                  By placing your order, you agree to our terms and rental
-                  policy.
+                  Khi đặt hàng, bạn đồng ý với điều khoản và chính sách thuê của chúng tôi.
                 </div>
               </div>
             </div>

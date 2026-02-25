@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Container } from "@/components/common/Container";
 import { ordersApi, type Order, type InspectionItemPayload } from "@/api/orders.api";
@@ -131,6 +131,31 @@ export default function AdminOrderDetailPage() {
     },
   });
 
+  // Confirm modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: (reason?: string) => void;
+    requireReason?: boolean;
+    reasonLabel?: string;
+  }>({ show: false, title: "", message: "", onConfirm: () => {} });
+  const reasonInputRef = useRef<HTMLInputElement>(null);
+
+  function openConfirm(opts: {
+    title: string;
+    message: string;
+    onConfirm: (reason?: string) => void;
+    requireReason?: boolean;
+    reasonLabel?: string;
+  }) {
+    setConfirmModal({ show: true, ...opts });
+  }
+
+  function closeConfirm() {
+    setConfirmModal({ show: false, title: "", message: "", onConfirm: () => {} });
+  }
+
   // Inspection form state
   const [inspectionItems, setInspectionItems] = useState<
     { conditionAfter: string; damageNotes: string; damageFee: number }[]
@@ -192,9 +217,11 @@ export default function AdminOrderDetailPage() {
   });
 
   function handleCompleteInspection() {
-    if (confirm(`Xác nhận hoàn thành kiểm tra đơn ${order?.orderNumber}?`)) {
-      completeInspectionMutation.mutate(id!);
-    }
+    openConfirm({
+      title: "Hoàn thành kiểm tra",
+      message: `Xác nhận hoàn thành kiểm tra đơn hàng #${order?.orderNumber}? Thao tác này không thể hoàn tác.`,
+      onConfirm: () => completeInspectionMutation.mutate(id!),
+    });
   }
 
   const cancelOrderMutation = useMutation({
@@ -211,20 +238,21 @@ export default function AdminOrderDetailPage() {
   });
 
   function handleShipOrder() {
-    if (
-      confirm(
-        `Xác nhận gửi hàng cho đơn ${order?.orderNumber}?\nTrạng thái sẽ chuyển sang "Đang vận chuyển".`
-      )
-    ) {
-      shipOrderMutation.mutate(id!);
-    }
+    openConfirm({
+      title: "Xác nhận gửi hàng",
+      message: `Xác nhận gửi hàng cho đơn #${order?.orderNumber}? Trạng thái sẽ chuyển sang "Đang vận chuyển".`,
+      onConfirm: () => shipOrderMutation.mutate(id!),
+    });
   }
 
   function handleCancelOrder() {
-    const reason = prompt("Lý do hủy đơn hàng (không bắt buộc):");
-    if (reason !== null) {
-      cancelOrderMutation.mutate({ orderId: id!, reason: reason || undefined });
-    }
+    openConfirm({
+      title: "Hủy đơn hàng",
+      message: `Bạn có chắc chắn muốn hủy đơn hàng #${order?.orderNumber}?`,
+      requireReason: true,
+      reasonLabel: "Lý do hủy (không bắt buộc)",
+      onConfirm: (reason) => cancelOrderMutation.mutate({ orderId: id!, reason: reason || undefined }),
+    });
   }
 
   if (isLoading) {
@@ -321,7 +349,11 @@ export default function AdminOrderDetailPage() {
           <div className="mb-6 flex flex-wrap gap-3">
             {(order.status === "pending" || order.status === "pending_payment") && order.paymentMethod === "cod" && (
               <button
-                onClick={() => activateCodMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Xác nhận thanh toán & Kích hoạt thuê",
+                  message: `Xác nhận thanh toán COD và kích hoạt thuê cho đơn #${order.orderNumber}?`,
+                  onConfirm: () => activateCodMutation.mutate(id!),
+                })}
                 disabled={activateCodMutation.isPending}
                 className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
@@ -330,7 +362,11 @@ export default function AdminOrderDetailPage() {
             )}
             {(order.status === "pending" || order.status === "pending_payment") && order.paymentMethod !== "cod" && (
               <button
-                onClick={() => confirmMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Xác nhận thanh toán",
+                  message: `Xác nhận đơn hàng #${order.orderNumber} đã được thanh toán?`,
+                  onConfirm: () => confirmMutation.mutate(id!),
+                })}
                 disabled={confirmMutation.isPending}
                 className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               >
@@ -339,7 +375,11 @@ export default function AdminOrderDetailPage() {
             )}
             {order.status === "confirmed" && (
               <button
-                onClick={() => pickMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Bắt đầu chuẩn bị hàng",
+                  message: `Bắt đầu chuẩn bị hàng cho đơn #${order.orderNumber}?`,
+                  onConfirm: () => pickMutation.mutate(id!),
+                })}
                 disabled={pickMutation.isPending}
                 className="px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
               >
@@ -357,7 +397,11 @@ export default function AdminOrderDetailPage() {
             )}
             {order.status === "shipping" && (
               <button
-                onClick={() => deliverMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Xác nhận đã giao hàng",
+                  message: `Xác nhận đã giao hàng thành công cho đơn #${order.orderNumber}?`,
+                  onConfirm: () => deliverMutation.mutate(id!),
+                })}
                 disabled={deliverMutation.isPending}
                 className="px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
               >
@@ -366,7 +410,11 @@ export default function AdminOrderDetailPage() {
             )}
             {order.status === "delivered" && (
               <button
-                onClick={() => activateMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Kích hoạt thuê",
+                  message: `Kích hoạt cho thuê đơn hàng #${order.orderNumber}? Thời gian thuê sẽ bắt đầu tính từ hôm nay.`,
+                  onConfirm: () => activateMutation.mutate(id!),
+                })}
                 disabled={activateMutation.isPending}
                 className="px-4 py-2 rounded-md bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
               >
@@ -375,7 +423,11 @@ export default function AdminOrderDetailPage() {
             )}
             {(order.status === "active_rental" || order.status === "overdue") && (
               <button
-                onClick={() => markReturnedMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Đánh dấu đã trả hàng",
+                  message: `Xác nhận khách đã trả hàng cho đơn #${order.orderNumber}? Hệ thống sẽ tính phí trả muộn nếu có.`,
+                  onConfirm: () => markReturnedMutation.mutate(id!),
+                })}
                 disabled={markReturnedMutation.isPending}
                 className="px-4 py-2 rounded-md bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 disabled:opacity-50"
               >
@@ -384,14 +436,17 @@ export default function AdminOrderDetailPage() {
             )}
             {order.status === "returned" && (
               <button
-                onClick={() => startInspectionMutation.mutate(id!)}
+                onClick={() => openConfirm({
+                  title: "Bắt đầu kiểm tra hàng",
+                  message: `Bắt đầu quy trình kiểm tra hàng hoàn trả cho đơn #${order.orderNumber}?`,
+                  onConfirm: () => startInspectionMutation.mutate(id!),
+                })}
                 disabled={startInspectionMutation.isPending}
                 className="px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
               >
                 Bắt đầu kiểm tra
               </button>
             )}
-            {/* Inspection form replaces the button — see section below */}
             {["draft", "pending_payment", "pending", "confirmed", "picking", "inspecting"].includes(order.status) && (
               <button
                 onClick={handleCancelOrder}
@@ -762,6 +817,60 @@ export default function AdminOrderDetailPage() {
           </div>
         </div>
       </Container>
+
+      {/* ── Confirm Modal ── */}
+      {confirmModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h3 className="text-base font-semibold text-slate-900">{confirmModal.title}</h3>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <p className="text-sm text-slate-600 leading-relaxed">{confirmModal.message}</p>
+
+              {confirmModal.requireReason && (
+                <div className="mt-4">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    {confirmModal.reasonLabel || "Lý do"}
+                  </label>
+                  <input
+                    ref={reasonInputRef}
+                    type="text"
+                    placeholder="Nhập lý do (không bắt buộc)..."
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 flex justify-end gap-3">
+              <button
+                onClick={closeConfirm}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                onClick={() => {
+                  const reason = confirmModal.requireReason
+                    ? reasonInputRef.current?.value || undefined
+                    : undefined;
+                  confirmModal.onConfirm(reason);
+                  closeConfirm();
+                }}
+                className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-700 transition-colors"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

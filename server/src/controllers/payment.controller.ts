@@ -134,6 +134,7 @@ export const PaymentController = {
       if (resultCode === MOMO_RESULT_CODES.SUCCESS || resultCode === MOMO_RESULT_CODES.CONFIRMED) {
         // Payment successful
         console.log(`[Payment] 💰 Processing SUCCESSFUL payment (resultCode: ${resultCode})`);
+        const previousStatus = order.status; // capture before mutating
         order.paymentStatus = "paid";
         order.status = "confirmed"; // Auto-confirm order after successful payment
         order.paymentDetails = {
@@ -156,13 +157,13 @@ export const PaymentController = {
         };
         order.confirmedAt = new Date();
 
-        // Add status history only if not already confirmed (prevent duplicate entries)
-        if (order.status !== "confirmed") {
+        // Add status history if not already confirmed (prevent duplicate IPN entries)
+        if (previousStatus !== "confirmed") {
           order.statusHistory.push({
             status: "confirmed",
             timestamp: new Date(),
-            notes: `Payment confirmed via MoMo (TransID: ${data.transId})`,
-          });
+            notes: `Thanh toán MoMo thành công (TransID: ${data.transId})`,
+          } as any);
         }
 
         await order.save();
@@ -297,6 +298,7 @@ export const PaymentController = {
       const totalAmount = order.total + (order.totalDeposit || 0);
 
       // Simulate successful MoMo payment callback (same as resultCode 0 or 9000)
+      const mockPreviousStatus = order.status; // capture before mutating
       order.paymentStatus = "paid";
       order.status = "confirmed"; // Auto-confirm order after successful payment
       order.paymentDetails = {
@@ -334,13 +336,13 @@ export const PaymentController = {
       };
       order.confirmedAt = new Date();
 
-      // Add status history only if not already confirmed (prevent duplicate entries)
-      if (order.status !== "confirmed") {
+      // Add status history if not already confirmed (prevent duplicate entries)
+      if (mockPreviousStatus !== "confirmed") {
         order.statusHistory.push({
           status: "confirmed",
           timestamp: new Date(),
-          notes: `Payment confirmed via MOCK MoMo (TransID: ${mockTransId})`,
-        });
+          notes: `Thanh toán MoMo thành công (Mock TransID: ${mockTransId})`,
+        } as any);
       }
 
       await order.save();

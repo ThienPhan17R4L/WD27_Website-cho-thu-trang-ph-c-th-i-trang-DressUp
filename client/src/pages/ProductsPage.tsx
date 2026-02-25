@@ -144,17 +144,17 @@ export default function ProductsPage() {
                 onClick={() => setSearchParams({}, { replace: true })}
                 className="h-12 w-full bg-[rgb(213,176,160)] text-white text-[12px] font-semibold tracking-[0.22em] uppercase"
               >
-                Clear filters
+                Xóa bộ lọc
               </button>
             </div>
 
             {/* PRODUCTS + PAGINATION */}
             <div>
-              {isLoading && <div className="text-sm text-slate-500">Loading...</div>}
+              {isLoading && <div className="text-sm text-slate-500">Đang tải...</div>}
 
               {isError && (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                  {(error as any)?.response?.data?.message ?? "Load failed"}
+                  {(error as any)?.response?.data?.message ?? "Tải thất bại"}
                 </div>
               )}
 

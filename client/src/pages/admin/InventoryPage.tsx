@@ -245,7 +245,7 @@ export default function InventoryPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                           {product.variants.map((variant: any) => (
-                            <tr key={variant._id} className="hover:bg-slate-50">
+                            <tr key={variant._id || `${variant.size}-${variant.color || "none"}`} className="hover:bg-slate-50">
                               <td className="px-4 py-2 font-mono text-slate-600">{variant.sku}</td>
                               <td className="px-4 py-2 text-slate-700">{variant.size}</td>
                               <td className="px-4 py-2 text-slate-700">{variant.color || "—"}</td>
@@ -401,7 +401,11 @@ export default function InventoryPage() {
                 min={1}
                 max={actionModal.maxQty}
                 value={actionQty}
-                onChange={(e) => setActionQty(Number(e.target.value))}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/^0+(?=\d)/, "");
+                  setActionQty(raw ? Math.max(1, Number(raw)) : 1);
+                }}
                 className="w-full rounded border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
               {actionModal.maxQty && (

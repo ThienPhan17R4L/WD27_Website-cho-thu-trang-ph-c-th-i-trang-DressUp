@@ -49,12 +49,12 @@ export default function Login() {
 
   function validate(values: FormState): FormErrors {
     const next: FormErrors = {};
-    if (!values.email.trim()) next.email = "Email is required.";
-    else if (!isValidEmail(values.email)) next.email = "Email is not valid.";
+    if (!values.email.trim()) next.email = "Email là bắt buộc.";
+    else if (!isValidEmail(values.email)) next.email = "Email không hợp lệ.";
 
-    if (!values.password) next.password = "Password is required.";
+    if (!values.password) next.password = "Mật khẩu là bắt buộc.";
     else if (values.password.length < 6)
-      next.password = "Password must be at least 6 characters.";
+      next.password = "Mật khẩu phải có ít nhất 6 ký tự.";
 
     return next;
   }
@@ -87,7 +87,7 @@ export default function Login() {
           password: "Email chưa được xác minh. Vui lòng kiểm tra email để xác minh tài khoản."
         });
       } else {
-        setErrors({ password: "Login failed. Please try again." });
+        setErrors({ password: "Đăng nhập thất bại. Vui lòng thử lại." });
       }
     } finally {
       setLoading(false);
@@ -154,9 +154,9 @@ export default function Login() {
             <div className="mb-6 text-center">
               <Logo size="lg" variant="light" />
               <h1 className="mt-3 text-2xl font-semibold text-white/90">
-                Welcome Back
+                Chào mừng trở lại
               </h1>
-              <p className="mt-1 text-sm text-white/70">Sign in to your account</p>
+              <p className="mt-1 text-sm text-white/70">Đăng nhập vào tài khoản của bạn</p>
             </div>
 
             <form className="space-y-3" onSubmit={handleSubmit} noValidate>
@@ -185,12 +185,12 @@ export default function Login() {
 
               <label className="block">
                 <span className="text-sm font-semibold text-white/90">
-                  Password
+                  Mật khẩu
                 </span>
                 <input
                   type="password"
                   autoComplete="current-password"
-                  placeholder="Password"
+                  placeholder="Mật khẩu"
                   value={form.password}
                   onChange={(e) => handleChange("password", e.target.value)}
                   className={[
@@ -214,7 +214,7 @@ export default function Login() {
                   onClick={handleForgotPassword}
                   className="cursor-pointer text-xs font-medium text-white/90 hover:text-white hover:underline"
                 >
-                  Forgot Password?
+                  Quên mật khẩu?
                 </button>
               </div>
 
@@ -229,14 +229,14 @@ export default function Login() {
                   "disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100",
                 ].join(" ")}
               >
-                {loading ? "Signing in..." : "Sign in"}
+                {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </button>
             </form>
 
             {/* Divider */}
             <div className="my-4 flex items-center gap-3">
               <div className="h-px flex-1 bg-white/25" />
-              <span className="text-xs text-white/85">or continue with</span>
+              <span className="text-xs text-white/85">hoặc tiếp tục với</span>
               <div className="h-px flex-1 bg-white/25" />
             </div>
 
@@ -275,13 +275,13 @@ export default function Login() {
 
             {/* Footer */}
             <div className="mt-4 text-center text-xs text-white/90">
-              Don&apos;t have an account?{" "}
+              Chưa có tài khoản?{" "}
               <button
                 type="button"
                 onClick={handleRegister}
                 className="cursor-pointer font-extrabold text-white hover:underline"
               >
-                Register for free
+                Đăng ký miễn phí
               </button>
             </div>
           </div>

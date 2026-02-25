@@ -44,11 +44,15 @@ export function CartItemRow({
   onRemove,
   onUpdate,
   updating,
+  checked,
+  onCheckedChange,
 }: {
   item: CartItem;
   onRemove: (itemId: string) => void;
   onUpdate: (payload: { itemId: string; quantity?: number; rentalStart?: string; rentalEnd?: string; variant?: any }) => void;
   updating?: boolean;
+  checked?: boolean;
+  onCheckedChange?: (id: string, checked: boolean) => void;
 }) {
   const [qty, setQty] = useState(item.quantity ?? 1);
   const [start, setStart] = useState(toDateInputValue(item.rental?.startDate));
@@ -63,14 +67,24 @@ export function CartItemRow({
   }, [item.variant]);
 
   return (
-    <div className="grid grid-cols-1 gap-6 border-b border-slate-200 pb-8 pt-8 md:grid-cols-[120px_1fr]">
+    <div className="grid grid-cols-1 gap-6 border-b border-slate-200 pb-8 pt-8 md:grid-cols-[auto_120px_1fr]">
+      {/* checkbox */}
+      <div className="flex items-start pt-1">
+        <input
+          type="checkbox"
+          checked={checked ?? true}
+          onChange={(e) => onCheckedChange?.(item._id, e.target.checked)}
+          className="h-4 w-4 cursor-pointer rounded border-slate-300 accent-[rgb(213,176,160)]"
+        />
+      </div>
+
       {/* image */}
       <div className="bg-[#f6f3ef] ring-1 ring-slate-200">
         <div className="aspect-[4/5] w-full">
           {item.image ? (
             <img src={item.image} alt="" className="h-full w-full object-contain" draggable={false} />
           ) : (
-            <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
+            <div className="flex h-full items-center justify-center text-xs text-slate-400">Không có ảnh</div>
           )}
         </div>
       </div>
@@ -92,7 +106,7 @@ export function CartItemRow({
             {/* dates */}
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <div className="text-[12px] font-medium text-slate-700">Start</div>
+                <div className="text-[12px] font-medium text-slate-700">Ngày bắt đầu</div>
                 <input
                   type="date"
                   value={start}
@@ -101,7 +115,7 @@ export function CartItemRow({
                 />
               </div>
               <div>
-                <div className="text-[12px] font-medium text-slate-700">End</div>
+                <div className="text-[12px] font-medium text-slate-700">Ngày kết thúc</div>
                 <input
                   type="date"
                   value={end}
@@ -129,7 +143,7 @@ export function CartItemRow({
                   })
                 }
               >
-                {updating ? "UPDATING..." : "UPDATE"}
+                {updating ? "ĐANG CẬP NHẬT..." : "CẬP NHẬT"}
               </button>
 
               <button
@@ -139,7 +153,7 @@ export function CartItemRow({
                 disabled={updating}
                 onClick={() => onRemove(item._id)}
               >
-                REMOVE
+                XÓA
               </button>
             </div>
           </div>
@@ -147,20 +161,20 @@ export function CartItemRow({
           {/* price */}
           <div className="hidden shrink-0 text-right md:block">
             <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-400">
-              Total
+              Tổng
             </div>
             <div className="mt-2 text-lg font-semibold" style={{ color: ACCENT }}>
               {typeof item.lineTotal === "number" ? formatVND(item.lineTotal) : "—"}
             </div>
             {typeof item.deposit === "number" ? (
-              <div className="mt-2 text-sm text-slate-500">Deposit: {formatVND(item.deposit)}</div>
+              <div className="mt-2 text-sm text-slate-500">Đặt cọc: {formatVND(item.deposit)}</div>
             ) : null}
           </div>
         </div>
 
         {/* mobile price */}
         <div className="mt-6 flex items-center justify-between md:hidden">
-          <div className="text-sm text-slate-500">Item total</div>
+          <div className="text-sm text-slate-500">Tổng sản phẩm</div>
           <div className="text-lg font-semibold" style={{ color: ACCENT }}>
             {typeof item.lineTotal === "number" ? formatVND(item.lineTotal) : "—"}
           </div>

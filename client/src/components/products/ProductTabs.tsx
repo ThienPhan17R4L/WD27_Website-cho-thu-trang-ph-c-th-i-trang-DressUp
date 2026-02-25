@@ -42,15 +42,15 @@ export function ProductTabs({
   return (
     <div className="mt-14">
       <div className="flex flex-wrap gap-4">
-        <TabButton k="desc" label="Description" />
-        <TabButton k="additional" label="Additional Information" />
-        <TabButton k="reviews" label={`Reviews (${reviewsCount})`} />
+        <TabButton k="desc" label="Mô tả" />
+        <TabButton k="additional" label="Thông tin thêm" />
+        <TabButton k="reviews" label={`Đánh giá (${reviewsCount})`} />
       </div>
 
       <div className="mt-8">
         {tab === "reviews" ? (
           <div className="text-[14px] leading-7 text-slate-600">
-            {reviewsCount ? "Render reviews list here." : "No reviews yet."}
+            {reviewsCount ? "Hiển thị danh sách đánh giá." : "Chưa có đánh giá."}
           </div>
         ) : (
           <div className="text-[14px] leading-7 text-slate-600 whitespace-pre-line">

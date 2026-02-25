@@ -17,7 +17,7 @@ export function ProductTopBar({
     <div className="mb-8 bg-[#f6f3ef] px-6 py-5">
       <div className="grid items-center gap-4 md:grid-cols-[1fr_260px_320px]">
         <div className="text-[12px] font-semibold tracking-[0.22em] uppercase text-slate-600">
-          Browse dresses
+          Khám phá trang phục
         </div>
 
         {/* SORT */}
@@ -26,12 +26,12 @@ export function ProductTopBar({
           onChange={(e) => onSortChange(e.target.value)}
           className="h-11 bg-white px-4 text-[12px] font-semibold tracking-[0.18em] uppercase ring-1 ring-slate-200 outline-none focus:ring-[rgba(213,176,160,0.6)]"
         >
-          <option value="-createdAt">Newest</option>
-          <option value="createdAt">Oldest</option>
-          <option value="name">Name A–Z</option>
-          <option value="-name">Name Z–A</option>
-          <option value="price">Price low → high</option>
-          <option value="-price">Price high → low</option>
+          <option value="-createdAt">Mới nhất</option>
+          <option value="createdAt">Cũ nhất</option>
+          <option value="name">Tên A–Z</option>
+          <option value="-name">Tên Z–A</option>
+          <option value="price">Giá tăng dần</option>
+          <option value="-price">Giá giảm dần</option>
         </select>
 
         {/* SEARCH */}
@@ -39,7 +39,7 @@ export function ProductTopBar({
           <input
             value={q}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search dress"
+            placeholder="Tìm kiếm trang phục"
             className="h-11 w-full bg-white pl-12 pr-12 text-[12px] tracking-[0.18em] ring-1 ring-slate-200 outline-none focus:ring-[rgba(213,176,160,0.6)]"
           />
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -65,7 +65,7 @@ export function ProductTopBar({
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-semibold tracking-[0.18em] uppercase"
               style={{ color: ACCENT }}
             >
-              Clear
+              Xóa
             </button>
           )}
         </div>

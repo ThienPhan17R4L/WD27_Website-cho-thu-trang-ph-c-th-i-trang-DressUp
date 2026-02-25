@@ -147,16 +147,16 @@ export default function RegisterPage() {
 									onClick={goLogin}
 									className="cursor-pointer rounded-xl border border-white/25 bg-white/15 px-4 py-2 text-sm font-bold text-white hover:bg-white/20"
 								>
-									Back to Login
+									Quay lại Đăng nhập
 								</button>
 							</div>
 							<div className="text-center">
 								<Logo size="lg" variant="light" />
 								<h1 className="mt-3 text-2xl font-semibold text-white/90">
-									Create Account
+									Tạo tài khoản
 								</h1>
 								<p className="mt-1 text-sm text-white/70">
-									Start renting fashion items today
+									Bắt đầu thuê thời trang ngay hôm nay
 								</p>
 							</div>
 						</div>

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Container } from "@/components/common/Container";
 import { useProduct } from "@/hooks/useProduct";
 import { ProductGallery } from "@/components/products/ProductGallery";
@@ -10,7 +10,6 @@ import { useAddToCart } from "@/hooks/useCart";
 import type { Variant, RentalTier } from "@/types/product";
 import { formatVND } from "@/utils/formatCurrency";
 import { validateRentalDates } from "@/utils/dateValidation";
-import { useNotification } from "@/contexts/NotificationContext";
 
 const ACCENT = "rgb(213, 176, 160)";
 
@@ -32,10 +31,10 @@ function toISODate(d: string) {
 
 export default function ProductDetailPage() {
   const { slug = "" } = useParams();
+  const navigate = useNavigate();
   const { data: product, isLoading, isError } = useProduct(slug);
 
   const addToCart = useAddToCart();
-  const { showNotification } = useNotification();
 
   const [size, setSize] = useState<string>("");
   const [color, setColor] = useState<string>("");
@@ -45,6 +44,8 @@ export default function ProductDetailPage() {
   const [dateError, setDateError] = useState<string>("");
 
   const [qty, setQty] = useState<number>(1);
+  const [cartMsg, setCartMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [rentNowPending, setRentNowPending] = useState(false);
 
   // Real-time date validation
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function ProductDetailPage() {
   if (isLoading) {
     return (
       <Container>
-        <div className="pt-24 pb-10 md:pt-28 lg:pt-32 text-sm text-slate-500">Loading...</div>
+        <div className="pt-24 pb-10 md:pt-28 lg:pt-32 text-sm text-slate-500">Đang tải...</div>
       </Container>
     );
   }
@@ -95,7 +96,7 @@ export default function ProductDetailPage() {
   if (isError || !product) {
     return (
       <Container>
-        <div className="pt-24 pb-10 md:pt-28 lg:pt-32 text-sm text-rose-700">Load failed</div>
+        <div className="pt-24 pb-10 md:pt-28 lg:pt-32 text-sm text-rose-700">Tải thất bại</div>
       </Container>
     );
   }
@@ -127,18 +128,18 @@ export default function ProductDetailPage() {
                 {/* block thông số như ảnh */}
                 <div className="space-y-2">
                   <div>
-                    <span className="font-semibold text-slate-800">BUST:</span>{" "}
-                    Great for any cup size – comfortable room at bust
+                    <span className="font-semibold text-slate-800">NGỰC:</span>{" "}
+                    Phù hợp mọi số đo ngực – thoải mái ở phần ngực
                   </div>
                   <div>
-                    <span className="font-semibold text-slate-800">WAIST:</span>{" "}
-                    Very Fitted – dress very fitted at natural waist
+                    <span className="font-semibold text-slate-800">EO:</span>{" "}
+                    Ôm sát – váy ôm sát eo tự nhiên
                   </div>
                   <div>
-                    <span className="font-semibold text-slate-800">HIPS:</span> Fitted – stretchy fabric at hips
+                    <span className="font-semibold text-slate-800">HÔNG:</span> Vừa vặn – chất liệu co giãn ở hông
                   </div>
                   <div>
-                    <span className="font-semibold text-slate-800">LENGTH:</span> Knee length – (on a 5'6" model)
+                    <span className="font-semibold text-slate-800">CHIỀU DÀI:</span> Dài đến gối – (trên người mẫu cao 1m68)
                   </div>
                 </div>
               </div>
@@ -152,7 +153,7 @@ export default function ProductDetailPage() {
                     onChange={(e) => setSize(e.target.value)}
                     className="h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
                   >
-                    <option value="">Choose an option</option>
+                    <option value="">Chọn tùy chọn</option>
                     {sizes.map((s) => (
                       <option key={s} value={s}>
                         {s}
@@ -165,7 +166,7 @@ export default function ProductDetailPage() {
               {/* Color */}
               <div className="mt-6">
                 <div className="flex items-center gap-2">
-                  <div className="text-[13px] font-medium text-slate-700">Color</div>
+                  <div className="text-[13px] font-medium text-slate-700">Màu sắc</div>
                   {color && (
                     <div className="text-[13px] text-slate-500">
                       — <span className="font-medium text-slate-800">{color}</span>
@@ -180,7 +181,7 @@ export default function ProductDetailPage() {
               {/* Rental Tier Suggestions */}
               {product.rentalTiers && product.rentalTiers.length > 0 && (
                 <div className="mt-7">
-                  <div className="text-[13px] font-medium text-slate-700">Quick Rental Options</div>
+                  <div className="text-[13px] font-medium text-slate-700">Tùy chọn thuê nhanh</div>
                   <div className="mt-3 flex flex-wrap gap-3">
                     {product.rentalTiers.map((tier: RentalTier) => (
                       <button
@@ -214,12 +215,12 @@ export default function ProductDetailPage() {
               {/* Start/End giống ảnh */}
               <div className="mt-7">
                 <div className="text-[13px] font-medium text-slate-700 mb-3">
-                  Or choose custom dates <span className="text-red-600">*</span>
+                  Hoặc chọn ngày tùy chỉnh <span className="text-red-600">*</span>
                 </div>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div>
                   <div className="text-[13px] font-medium text-slate-700">
-                    Start <span className="text-red-600">*</span>
+                    Ngày bắt đầu <span className="text-red-600">*</span>
                   </div>
                   <input
                     value={start}
@@ -232,7 +233,7 @@ export default function ProductDetailPage() {
                 </div>
                 <div>
                   <div className="text-[13px] font-medium text-slate-700">
-                    End <span className="text-red-600">*</span>
+                    Ngày kết thúc <span className="text-red-600">*</span>
                   </div>
                   <input
                     value={end}
@@ -261,13 +262,13 @@ export default function ProductDetailPage() {
                 <div className="mt-7 p-5 bg-[#f6f3ef] ring-1 ring-slate-100">
                   <div className="text-sm text-slate-600">
                     <div className="flex items-center justify-between">
-                      <span className="text-[13px] font-medium">Rental from</span>
+                      <span className="text-[13px] font-medium">Giá thuê từ</span>
                       <span className="text-[24px] font-semibold" style={{ color: ACCENT }}>
                         {formatVND(product.minPrice || Math.min(...product.rentalTiers.map((t: RentalTier) => t.price)))}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-xs">
-                      <span className="text-slate-500">Security Deposit</span>
+                      <span className="text-slate-500">Tiền đặt cọc</span>
                       <span className="font-semibold text-slate-700">
                         {formatVND(product.depositDefault || 0)}
                       </span>
@@ -276,68 +277,151 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Qty + Buy */}
-              <div className="mt-6 flex items-center gap-4">
-                <QuantityStepper value={qty} onChange={setQty} />
+              {/* Qty + Add to Cart */}
+              <div className="mt-6">
+                <div className="flex flex-wrap items-center gap-4">
+                  <QuantityStepper value={qty} onChange={setQty} />
 
-                <button
-                  type="button"
-                  className={[
-                    "h-12 px-10 text-[12px] font-semibold tracking-[0.22em] uppercase",
-                    "ring-1 ring-[rgba(213,176,160,0.45)]",
-                    "disabled:cursor-not-allowed disabled:opacity-60",
-                  ].join(" ")}
-                  style={{ backgroundColor: "rgba(213,176,160,0.28)", color: "rgba(15,23,42,0.55)" }}
-                  disabled={!pickedVariant || !start || !end || addToCart.isPending}
-                  onClick={() => {
-                    if (!pickedVariant) {
-                      showNotification("error", "Vui lòng chọn size và color");
-                      return;
-                    }
+                  <button
+                    type="button"
+                    className={[
+                      "h-12 px-10 text-[12px] font-semibold tracking-[0.22em] uppercase",
+                      "ring-1 ring-[rgba(213,176,160,0.45)]",
+                      "disabled:cursor-not-allowed disabled:opacity-60",
+                    ].join(" ")}
+                    style={{ backgroundColor: "rgba(213,176,160,0.28)", color: "rgba(15,23,42,0.55)" }}
+                    disabled={!pickedVariant || !start || !end || addToCart.isPending || rentNowPending}
+                    onClick={() => {
+                      setCartMsg(null);
 
-                    if (!start || !end) {
-                      showNotification("error", "Vui lòng chọn ngày bắt đầu và kết thúc thuê");
-                      return;
-                    }
-
-                    // Validate dates before adding to cart
-                    const validation = validateRentalDates(start, end);
-                    if (!validation.isValid) {
-                      showNotification("error", validation.error!);
-                      return;
-                    }
-
-                    addToCart.mutate(
-                      {
-                        productId: product._id,
-                        rentalStart: toISODate(start),
-                        rentalEnd: toISODate(end),
-                        variant: {
-                          size: (pickedVariant as any).size,
-                          color: (pickedVariant as any).color,
-                        },
-                        quantity: qty,
-                      },
-                      {
-                        onSuccess: () => {
-                          showNotification("success", "Đã thêm vào giỏ hàng");
-                        },
-                        onError: (error: any) => {
-                          showNotification("error", error.response?.data?.message || "Không thể thêm vào giỏ hàng");
-                        },
+                      if (!pickedVariant) {
+                        setCartMsg({ type: "error", text: "Vui lòng chọn size và màu sắc" });
+                        return;
                       }
-                    );
-                  }}
-                >
-                  {addToCart.isPending ? "ADDING..." : "BUY NOW"}
-                </button>
+
+                      if (!start || !end) {
+                        setCartMsg({ type: "error", text: "Vui lòng chọn ngày bắt đầu và kết thúc thuê" });
+                        return;
+                      }
+
+                      const validation = validateRentalDates(start, end);
+                      if (!validation.isValid) {
+                        setCartMsg({ type: "error", text: validation.error! });
+                        return;
+                      }
+
+                      addToCart.mutate(
+                        {
+                          productId: product._id,
+                          rentalStart: toISODate(start),
+                          rentalEnd: toISODate(end),
+                          variant: {
+                            size: (pickedVariant as any).size,
+                            color: (pickedVariant as any).color,
+                          },
+                          quantity: qty,
+                        },
+                        {
+                          onSuccess: () => {
+                            setCartMsg({ type: "success", text: "Đã thêm vào giỏ hàng thành công!" });
+                          },
+                          onError: (error: any) => {
+                            setCartMsg({ type: "error", text: error.response?.data?.message || "Không thể thêm vào giỏ hàng" });
+                          },
+                        }
+                      );
+                    }}
+                  >
+                    {addToCart.isPending ? "ĐANG THÊM..." : "THÊM VÀO GIỎ"}
+                  </button>
+
+                  {/* Thuê ngay — add to cart then go directly to checkout */}
+                  <button
+                    type="button"
+                    className={[
+                      "h-12 px-10 text-[12px] font-semibold tracking-[0.22em] uppercase text-white",
+                      "disabled:cursor-not-allowed disabled:opacity-60",
+                    ].join(" ")}
+                    style={{ backgroundColor: ACCENT }}
+                    disabled={!pickedVariant || !start || !end || addToCart.isPending || rentNowPending}
+                    onClick={async () => {
+                      setCartMsg(null);
+
+                      if (!pickedVariant) {
+                        setCartMsg({ type: "error", text: "Vui lòng chọn size và màu sắc" });
+                        return;
+                      }
+
+                      if (!start || !end) {
+                        setCartMsg({ type: "error", text: "Vui lòng chọn ngày bắt đầu và kết thúc thuê" });
+                        return;
+                      }
+
+                      const validation = validateRentalDates(start, end);
+                      if (!validation.isValid) {
+                        setCartMsg({ type: "error", text: validation.error! });
+                        return;
+                      }
+
+                      try {
+                        setRentNowPending(true);
+                        const updatedCart = await addToCart.mutateAsync({
+                          productId: product._id,
+                          rentalStart: toISODate(start),
+                          rentalEnd: toISODate(end),
+                          variant: {
+                            size: (pickedVariant as any).size,
+                            color: (pickedVariant as any).color,
+                          },
+                          quantity: qty,
+                        });
+
+                        // Find the newly added item by matching product + variant + dates
+                        const newItem = updatedCart?.items?.find((it: any) => {
+                          const sameProduct = it.productId === product._id || it.productId?._id === product._id;
+                          const sameSize = it.variant?.size === (pickedVariant as any).size;
+                          const sameColor = (it.variant?.color || "") === ((pickedVariant as any).color || "");
+                          return sameProduct && sameSize && sameColor;
+                        });
+
+                        if (newItem?._id) {
+                          sessionStorage.setItem("checkout_item_ids", JSON.stringify([newItem._id]));
+                        } else {
+                          sessionStorage.removeItem("checkout_item_ids");
+                        }
+
+                        navigate("/checkout");
+                      } catch (error: any) {
+                        setCartMsg({ type: "error", text: error.response?.data?.message || "Không thể xử lý. Vui lòng thử lại." });
+                      } finally {
+                        setRentNowPending(false);
+                      }
+                    }}
+                  >
+                    {rentNowPending ? "ĐANG XỬ LÝ..." : "THUÊ NGAY"}
+                  </button>
+                </div>
+
+                {/* Inline cart feedback — ngay bên dưới nút */}
+                {cartMsg && (
+                  <div
+                    className={`mt-3 flex items-center gap-2 rounded px-4 py-2.5 text-sm font-medium ${
+                      cartMsg.type === "success"
+                        ? "bg-green-50 text-green-700 border border-green-200"
+                        : "bg-red-50 text-red-700 border border-red-200"
+                    }`}
+                  >
+                    <span>{cartMsg.type === "success" ? "✓" : "✕"}</span>
+                    <span>{cartMsg.text}</span>
+                  </div>
+                )}
               </div>
 
-              {/* wishlist giống ảnh */}
+              {/* wishlist */}
               <div className="mt-6 flex items-center gap-2 text-[13px]" style={{ color: "rgba(213,176,160,0.95)" }}>
                 <span aria-hidden="true">♡</span>
                 <button type="button" className="hover:underline">
-                  Add to Wishlist
+                  Thêm vào yêu thích
                 </button>
               </div>
 
@@ -345,7 +429,7 @@ export default function ProductDetailPage() {
               <div className="mt-6 text-sm text-slate-500">
                 {pickedVariant ? (
                   <span>
-                    Selected:{" "}
+                    Đã chọn:{" "}
                     <span className="font-semibold text-slate-800">{(pickedVariant as any).size}</span>
                     {(pickedVariant as any).color ? (
                       <>
@@ -355,7 +439,7 @@ export default function ProductDetailPage() {
                     ) : null}
                   </span>
                 ) : (
-                  <span>Pick size/color to match a variant.</span>
+                  <span>Chọn size/màu để phù hợp với biến thể.</span>
                 )}
               </div>
             </div>

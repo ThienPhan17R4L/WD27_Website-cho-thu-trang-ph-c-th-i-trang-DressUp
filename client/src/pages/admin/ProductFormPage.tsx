@@ -559,10 +559,15 @@ export default function ProductFormPage() {
                   </label>
                   <input
                     required
-                    type="number"
-                    min={0}
-                    value={form.depositDefault}
-                    onChange={(e) => setField("depositDefault", Number(e.target.value))}
+                    type="text"
+                    inputMode="numeric"
+                    value={form.depositDefault === 0 ? "" : form.depositDefault.toLocaleString("vi-VN")}
+                    placeholder="0"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d]/g, "");
+                      setField("depositDefault", raw ? parseInt(raw, 10) : 0);
+                    }}
                     className="mt-1 w-full rounded border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
                   />
                 </div>
@@ -600,17 +605,26 @@ export default function ProductFormPage() {
                               type="number"
                               min={1}
                               value={tier.days}
-                              onChange={(e) => updateTier(idx, { days: Number(e.target.value) })}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/^0+(?=\d)/, "");
+                                updateTier(idx, { days: raw ? Number(raw) : 1 });
+                              }}
                               className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-300"
                             />
                           </div>
                           <div>
                             <label className="text-[10px] text-slate-400">Giá (VND)</label>
                             <input
-                              type="number"
-                              min={0}
-                              value={tier.price}
-                              onChange={(e) => updateTier(idx, { price: Number(e.target.value) })}
+                              type="text"
+                              inputMode="numeric"
+                              value={tier.price === 0 ? "" : tier.price.toLocaleString("vi-VN")}
+                              placeholder="0"
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/[^\d]/g, "");
+                                updateTier(idx, { price: raw ? parseInt(raw, 10) : 0 });
+                              }}
                               className="mt-0.5 w-full rounded border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-300"
                             />
                           </div>

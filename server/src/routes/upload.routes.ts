@@ -9,7 +9,6 @@ export const uploadRouter = Router();
 uploadRouter.post(
   "/image",
   requireAuth,
-  requireAdmin,
   uploadMiddleware.single("image"),
   uploadController.uploadImage
 );

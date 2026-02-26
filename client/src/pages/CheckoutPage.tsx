@@ -28,7 +28,7 @@ export default function CheckoutPage() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   const [form, setForm] = useState({
-    paymentMethod: "cod" as "cod" | "vnpay" | "momo" | "zalopay" | "store",
+    paymentMethod: "store" as "store" | "momo",
     notes: "",
   });
 
@@ -282,7 +282,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="mt-6 space-y-3">
-                {(["store", "cod", "vnpay", "momo", "zalopay"] as const).map((method) => (
+                {(["store", "momo"] as const).map((method) => (
                   <label
                     key={method}
                     className="flex items-center gap-3 cursor-pointer"
@@ -295,7 +295,7 @@ export default function CheckoutPage() {
                       onChange={(e) =>
                         setForm({
                           ...form,
-                          paymentMethod: e.target.value as any,
+                          paymentMethod: e.target.value as "store" | "momo",
                         })
                       }
                       className="h-4 w-4"
@@ -303,9 +303,7 @@ export default function CheckoutPage() {
                     <span className="text-sm text-slate-700">
                       {method === "store"
                         ? "Thanh toán trực tiếp tại cửa hàng"
-                        : method === "cod"
-                        ? "Thanh toán khi nhận hàng (COD)"
-                        : method.toUpperCase()}
+                        : "Thanh toán qua MoMo"}
                     </span>
                   </label>
                 ))}

@@ -7,7 +7,7 @@ import { QuantityStepper } from "@/components/products/QuantityStepper";
 import { ColorSwatches } from "@/components/products/ColorSwatches";
 import { ProductTabs } from "@/components/products/ProductTabs";
 import { useAddToCart } from "@/hooks/useCart";
-import type { Variant, RentalTier } from "@/types/product";
+import type { Variant, RentalTier, VariantInventory } from "@/types/product";
 import { formatVND } from "@/utils/formatCurrency";
 import { validateRentalDates } from "@/utils/dateValidation";
 
@@ -84,6 +84,43 @@ export default function ProductDetailPage() {
     );
   }, [product?.variants, size, color]);
 
+  // Inventory helpers
+  const totalAvailable = useMemo(() => {
+    if (!product?.inventory?.length) return null;
+    return product.inventory.reduce((sum: number, inv: VariantInventory) => sum + inv.qtyAvailable, 0);
+  }, [product?.inventory]);
+
+  const pickedVariantQty = useMemo(() => {
+    if (!product?.inventory?.length || !pickedVariant) return null;
+    const inv = product.inventory.find((inv: VariantInventory) =>
+      inv.variantKey.size === (pickedVariant as any).size &&
+      (inv.variantKey.color || "") === ((pickedVariant as any).color || "")
+    );
+    return inv?.qtyAvailable ?? null;
+  }, [product?.inventory, pickedVariant]);
+
+  // Sizes that have at least 1 item available
+  const availableSizesSet = useMemo(() => {
+    if (!product?.inventory?.length) return null;
+    const s = new Set<string>();
+    for (const inv of product.inventory) {
+      if (inv.qtyAvailable > 0) s.add(inv.variantKey.size);
+    }
+    return s;
+  }, [product?.inventory]);
+
+  // Colors unavailable for the currently selected size (or all sizes if none selected)
+  const unavailableColors = useMemo(() => {
+    if (!product?.inventory?.length || !colors.length) return [] as string[];
+    return colors.filter((c) => {
+      const inv = product.inventory!.find((inv: VariantInventory) =>
+        (!size || inv.variantKey.size === size) &&
+        (inv.variantKey.color || "") === c
+      );
+      return !inv || inv.qtyAvailable === 0;
+    });
+  }, [product?.inventory, colors, size]);
+
 
   if (isLoading) {
     return (
@@ -144,6 +181,13 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Out of stock banner */}
+              {totalAvailable !== null && totalAvailable === 0 && (
+                <div className="mt-6 px-5 py-3 bg-slate-100 border border-slate-300 text-sm font-semibold text-slate-600 text-center tracking-wide">
+                  Tạm thời hết hàng
+                </div>
+              )}
+
               {/* Size */}
               <div className="mt-8">
                 <div className="text-[13px] font-medium text-slate-700">Size</div>
@@ -154,11 +198,14 @@ export default function ProductDetailPage() {
                     className="h-14 w-full bg-[#f6f3ef] px-5 text-sm outline-none ring-1 ring-slate-200 focus:ring-[rgba(213,176,160,0.8)]"
                   >
                     <option value="">Chọn tùy chọn</option>
-                    {sizes.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
+                    {sizes.map((s) => {
+                      const outOfStock = availableSizesSet !== null && !availableSizesSet.has(s);
+                      return (
+                        <option key={s} value={s} disabled={outOfStock}>
+                          {s}{outOfStock ? " (hết hàng)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
@@ -174,7 +221,7 @@ export default function ProductDetailPage() {
                   )}
                 </div>
                 <div className="mt-3">
-                  <ColorSwatches colors={colors} value={color} onChange={setColor} />
+                  <ColorSwatches colors={colors} value={color} onChange={setColor} disabledColors={unavailableColors} />
                 </div>
               </div>
 
@@ -290,7 +337,7 @@ export default function ProductDetailPage() {
                       "disabled:cursor-not-allowed disabled:opacity-60",
                     ].join(" ")}
                     style={{ backgroundColor: "rgba(213,176,160,0.28)", color: "rgba(15,23,42,0.55)" }}
-                    disabled={!pickedVariant || !start || !end || addToCart.isPending || rentNowPending}
+                    disabled={!pickedVariant || pickedVariantQty === 0 || !start || !end || addToCart.isPending || rentNowPending}
                     onClick={() => {
                       setCartMsg(null);
 
@@ -343,7 +390,7 @@ export default function ProductDetailPage() {
                       "disabled:cursor-not-allowed disabled:opacity-60",
                     ].join(" ")}
                     style={{ backgroundColor: ACCENT }}
-                    disabled={!pickedVariant || !start || !end || addToCart.isPending || rentNowPending}
+                    disabled={!pickedVariant || pickedVariantQty === 0 || !start || !end || addToCart.isPending || rentNowPending}
                     onClick={async () => {
                       setCartMsg(null);
 
@@ -437,6 +484,22 @@ export default function ProductDetailPage() {
                         / <span className="font-semibold text-slate-800">{(pickedVariant as any).color}</span>
                       </>
                     ) : null}
+                    {pickedVariantQty !== null && (
+                      <span
+                        className={[
+                          "ml-3 text-xs font-semibold px-2 py-0.5 rounded",
+                          pickedVariantQty === 0
+                            ? "bg-red-100 text-red-600"
+                            : pickedVariantQty <= 2
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-green-100 text-green-700",
+                        ].join(" ")}
+                      >
+                        {pickedVariantQty === 0
+                          ? "Hết hàng"
+                          : `Còn ${pickedVariantQty} sản phẩm`}
+                      </span>
+                    )}
                   </span>
                 ) : (
                   <span>Chọn size/màu để phù hợp với biến thể.</span>

@@ -177,11 +177,6 @@ export const OrderService = {
       pickupDeadline.setHours(pickupDeadline.getHours() + 2);
     }
 
-    // 3.5 Validate shipping address (not required for in-store payment)
-    if (payload.paymentMethod !== "store" && !payload.shippingAddress) {
-      throw new BadRequestError("MISSING_ADDRESS", "Shipping address is required");
-    }
-
     // 4. Create order
     const orderData: any = {
       userId,
@@ -202,7 +197,7 @@ export const OrderService = {
         lineTotal:
           item.lineTotal || item.rental.price * item.rental.days * item.quantity,
       })),
-      ...(payload.shippingAddress ? { shippingAddress: payload.shippingAddress } : {}),
+      shippingAddress: payload.shippingAddress,
       subtotal,
       discount,
       shippingFee,

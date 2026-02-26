@@ -36,17 +36,6 @@ export class ProductRepository {
           },
         },
       },
-      {
-        $lookup: {
-          from: "inventories",
-          let: { productId: "$_id" },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$productId", "$$productId"] } } },
-            { $project: { _id: 0, variantKey: 1, qtyAvailable: 1, qtyTotal: 1 } },
-          ],
-          as: "inventory",
-        },
-      },
     ]);
 
     return result[0] || null;
@@ -64,17 +53,6 @@ export class ProductRepository {
               null,
             ],
           },
-        },
-      },
-      {
-        $lookup: {
-          from: "inventories",
-          let: { productId: "$_id" },
-          pipeline: [
-            { $match: { $expr: { $eq: ["$productId", "$$productId"] } } },
-            { $project: { _id: 0, variantKey: 1, qtyAvailable: 1, qtyTotal: 1 } },
-          ],
-          as: "inventory",
         },
       },
     ]);
@@ -119,60 +97,15 @@ export class ProductRepository {
     if (brand) match.brand = new RegExp(`^${escapeRegExp(brand)}$`, "i");
 
     const hasQ = Boolean(q && q.trim());
-    // Split query into individual words; all words must match (AND logic)
-    const queryWords = hasQ ? q!.trim().split(/\s+/).filter((w) => w.length > 0) : [];
-
-    if (hasQ && queryWords.length > 0) {
-      const wordConditions = queryWords.map((word) => ({
-        $or: [
-          { name: { $regex: word, $options: "i" } },
-          { tags: { $elemMatch: { $regex: word, $options: "i" } } },
-          { brand: { $regex: word, $options: "i" } },
-          { description: { $regex: word, $options: "i" } },
-        ],
-      }));
-      if (wordConditions.length === 1) {
-        match.$or = wordConditions[0]!.$or;
-      } else {
-        match.$and = wordConditions;
-      }
+    if (hasQ) {
+      match.$text = { $search: q!.trim() };
     }
 
+    // $text must be in the FIRST $match stage
     const pipeline: any[] = [{ $match: match }];
 
-    // Compute relevance score: name match = 2 pts/word, tag/brand match = 1 pt/word
-    if (hasQ && queryWords.length > 0) {
-      pipeline.push({
-        $addFields: {
-          score: {
-            $add: queryWords.map((word) => ({
-              $cond: [
-                { $regexMatch: { input: { $ifNull: ["$name", ""] }, regex: word, options: "i" } },
-                2,
-                {
-                  $cond: [
-                    {
-                      $gt: [
-                        {
-                          $size: {
-                            $filter: {
-                              input: { $ifNull: ["$tags", []] },
-                              cond: { $regexMatch: { input: "$$this", regex: word, options: "i" } },
-                            },
-                          },
-                        },
-                        0,
-                      ],
-                    },
-                    1,
-                    0,
-                  ],
-                },
-              ],
-            })),
-          },
-        },
-      });
+    if (hasQ) {
+      pipeline.push({ $addFields: { score: { $meta: "textScore" } } });
     }
 
     // ✅ compute minPrice from rentalTiers.price
@@ -209,7 +142,7 @@ export class ProductRepository {
     } else if (parsed) {
       sortStage[parsed.field] = parsed.dir;
     } else if (hasQ) {
-      sortStage.score = -1; // relevance score computed above
+      sortStage.score = { $meta: "textScore" };
       sortStage.createdAt = -1;
     } else {
       sortStage.createdAt = -1;

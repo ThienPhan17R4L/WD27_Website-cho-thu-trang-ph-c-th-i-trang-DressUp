@@ -5,7 +5,7 @@ export const dashboardController = {
   overview: async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const data = await dashboardService.getOverview();
-      return res.json(data);
+      return res.json({ data });
     } catch (e) {
       next(e);
     }

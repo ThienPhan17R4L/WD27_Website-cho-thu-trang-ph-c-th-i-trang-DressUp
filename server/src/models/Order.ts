@@ -17,7 +17,7 @@ export type OrderStatus =
   | "pending"
   | "renting";
 
-export type PaymentMethod = "cod" | "vnpay" | "momo" | "zalopay" | "mock" | "store";
+export type PaymentMethod = "cod" | "vnpay" | "momo" | "zalopay" | "mock";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 export interface StatusHistoryEntry {
@@ -174,12 +174,12 @@ const OrderItemSchema = new Schema<OrderItem>(
 
 const ShippingAddressSchema = new Schema<ShippingAddress>(
   {
-    receiverName: { type: String, required: false },
-    receiverPhone: { type: String, required: false },
-    line1: { type: String, required: false },
-    ward: { type: String, required: false },
-    district: { type: String, required: false },
-    province: { type: String, required: false },
+    receiverName: { type: String, required: true },
+    receiverPhone: { type: String, required: true },
+    line1: { type: String, required: true },
+    ward: { type: String, required: true },
+    district: { type: String, required: true },
+    province: { type: String, required: true },
     country: { type: String, default: "VN" },
     postalCode: { type: String },
   },
@@ -191,7 +191,7 @@ const OrderSchema = new Schema<OrderDoc>(
     userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
     orderNumber: { type: String, required: true, unique: true },
     items: [OrderItemSchema],
-    shippingAddress: { type: ShippingAddressSchema, required: false },
+    shippingAddress: { type: ShippingAddressSchema, required: true },
     subtotal: { type: Number, required: true, min: 0 },
     discount: { type: Number, default: 0, min: 0 },
     shippingFee: { type: Number, default: 0, min: 0 },
@@ -202,7 +202,7 @@ const OrderSchema = new Schema<OrderDoc>(
     total: { type: Number, required: true, min: 0 },
     paymentMethod: {
       type: String,
-      enum: ["cod", "vnpay", "momo", "zalopay", "mock", "store"],
+      enum: ["cod", "vnpay", "momo", "zalopay", "mock"],
       required: true,
     },
     paymentStatus: {

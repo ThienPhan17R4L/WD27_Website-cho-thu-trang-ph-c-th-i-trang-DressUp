@@ -10,15 +10,13 @@ const AppShell: React.FC = () => {
 
   const activePath = useMemo(() => {
     const p = location.pathname;
-    if (p === "/home" || p === "/") return "/home";
-    if (p.startsWith("/categories")) return "/categories";
     if (p.startsWith("/products")) return "/products";
     if (p.startsWith("/rent")) return "/rent";
     if (p.startsWith("/occasions")) return "/occasions";
     if (p.startsWith("/whats-new")) return "/whats-new";
     if (p.startsWith("/features")) return "/features";
     if (p.startsWith("/contacts")) return "/contacts";
-    return "";
+    return "/";
   }, [location.pathname]);
 
   const handleLogout = () => {

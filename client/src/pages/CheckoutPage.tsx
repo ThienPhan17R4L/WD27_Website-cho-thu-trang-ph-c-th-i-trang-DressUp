@@ -28,7 +28,7 @@ export default function CheckoutPage() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   const [form, setForm] = useState({
-    paymentMethod: "cod" as "cod" | "vnpay" | "momo" | "zalopay" | "store",
+    paymentMethod: "cod" as "cod" | "vnpay" | "momo" | "zalopay",
     notes: "",
   });
 
@@ -130,8 +130,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Validate address selection (not required for in-store payment)
-    if (form.paymentMethod !== "store" && !selectedAddress) {
+    // Validate address selection
+    if (!selectedAddress) {
       showNotification("error", "Vui lòng chọn địa chỉ giao hàng");
       setIsAddressModalOpen(true);
       return;
@@ -145,12 +145,7 @@ export default function CheckoutPage() {
 
     try {
       const orderPayload: any = {
-        paymentMethod: form.paymentMethod,
-        notes: form.notes.trim(),
-      };
-
-      if (form.paymentMethod !== "store" && selectedAddress) {
-        orderPayload.shippingAddress = {
+        shippingAddress: {
           receiverName: selectedAddress.receiverName,
           receiverPhone: selectedAddress.receiverPhone,
           line1: selectedAddress.line1,
@@ -158,8 +153,10 @@ export default function CheckoutPage() {
           district: selectedAddress.district,
           province: selectedAddress.province,
           country: selectedAddress.country || "VN",
-        };
-      }
+        },
+        paymentMethod: form.paymentMethod,
+        notes: form.notes.trim(),
+      };
 
       // Pass selected item IDs to backend if partial checkout
       if (checkoutItemIds && checkoutItemIds.length > 0) {
@@ -278,96 +275,86 @@ export default function CheckoutPage() {
             {/* Left: Form */}
             <div>
               <div className="text-lg font-semibold text-slate-900">
-                Phương thức thanh toán
+                Thông tin giao hàng
               </div>
 
-              <div className="mt-6 space-y-3">
-                {(["store", "cod", "vnpay", "momo", "zalopay"] as const).map((method) => (
-                  <label
-                    key={method}
-                    className="flex items-center gap-3 cursor-pointer"
+              {/* Address Section */}
+              <div className="mt-6 p-5 bg-[#f6f3ef] border border-slate-200 rounded-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Địa chỉ giao hàng
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressModalOpen(true)}
+                    className="text-sm font-medium hover:underline"
+                    style={{ color: ACCENT }}
                   >
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value={method}
-                      checked={form.paymentMethod === method}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          paymentMethod: e.target.value as any,
-                        })
-                      }
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm text-slate-700">
-                      {method === "store"
-                        ? "Thanh toán trực tiếp tại cửa hàng"
-                        : method === "cod"
-                        ? "Thanh toán khi nhận hàng (COD)"
-                        : method.toUpperCase()}
-                    </span>
-                  </label>
-                ))}
+                    {selectedAddress ? "Thay đổi" : "Chọn địa chỉ"}
+                  </button>
+                </div>
+
+                {selectedAddress ? (
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <div className="flex items-center gap-2">
+                      {selectedAddress.isDefault && (
+                        <span className="text-xs bg-slate-200 px-2 py-0.5 rounded">
+                          Mặc định
+                        </span>
+                      )}
+                      {selectedAddress.label && (
+                        <span className="font-medium">{selectedAddress.label}</span>
+                      )}
+                    </div>
+                    <div className="font-medium text-slate-900">
+                      {selectedAddress.receiverName} | {selectedAddress.receiverPhone}
+                    </div>
+                    <div className="text-slate-600">
+                      {selectedAddress.line1}
+                      <br />
+                      {selectedAddress.ward}, {selectedAddress.district}, {selectedAddress.province}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-500 italic">
+                    Chưa chọn địa chỉ giao hàng
+                  </div>
+                )}
               </div>
 
-              {/* Address Section — hidden for in-store payment */}
-              {form.paymentMethod !== "store" && (
-                <div className="mt-10">
-                  <div className="text-lg font-semibold text-slate-900">
-                    Thông tin giao hàng
-                  </div>
-
-                  <div className="mt-6 p-5 bg-[#f6f3ef] border border-slate-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="text-sm font-semibold text-slate-700">
-                        Địa chỉ giao hàng
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsAddressModalOpen(true)}
-                        className="text-sm font-medium hover:underline"
-                        style={{ color: ACCENT }}
-                      >
-                        {selectedAddress ? "Thay đổi" : "Chọn địa chỉ"}
-                      </button>
-                    </div>
-
-                    {selectedAddress ? (
-                      <div className="space-y-2 text-sm text-slate-700">
-                        <div className="flex items-center gap-2">
-                          {selectedAddress.isDefault && (
-                            <span className="text-xs bg-slate-200 px-2 py-0.5 rounded">
-                              Mặc định
-                            </span>
-                          )}
-                          {selectedAddress.label && (
-                            <span className="font-medium">{selectedAddress.label}</span>
-                          )}
-                        </div>
-                        <div className="font-medium text-slate-900">
-                          {selectedAddress.receiverName} | {selectedAddress.receiverPhone}
-                        </div>
-                        <div className="text-slate-600">
-                          {selectedAddress.line1}
-                          <br />
-                          {selectedAddress.ward}, {selectedAddress.district}, {selectedAddress.province}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-slate-500 italic">
-                        Chưa chọn địa chỉ giao hàng
-                      </div>
-                    )}
-                  </div>
+              <div className="mt-10">
+                <div className="text-lg font-semibold text-slate-900">
+                  Phương thức thanh toán
                 </div>
-              )}
 
-              {form.paymentMethod === "store" && (
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
-                  Bạn sẽ đến cửa hàng để nhận và thanh toán trực tiếp. Không cần địa chỉ giao hàng.
+                <div className="mt-6 space-y-3">
+                  {["cod", "vnpay", "momo", "zalopay"].map((method) => (
+                    <label
+                      key={method}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={method}
+                        checked={form.paymentMethod === method}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            paymentMethod: e.target.value as any,
+                          })
+                        }
+                        className="h-4 w-4"
+                      />
+                      <span className="text-sm text-slate-700">
+                        {method === "cod"
+                          ? "Thanh toán khi nhận hàng (COD)"
+                          : method.toUpperCase()}
+                      </span>
+                    </label>
+                  ))}
                 </div>
-              )}
+              </div>
 
               <div className="mt-10">
                 <label className="text-[13px] font-medium text-slate-700">
@@ -476,11 +463,7 @@ export default function CheckoutPage() {
 
                   <div className="pt-4 border-t border-slate-300 flex items-center justify-between">
                     <span className="text-slate-900 font-semibold">
-                      {form.paymentMethod === "store"
-                        ? "Tổng thanh toán tại cửa hàng"
-                        : form.paymentMethod === "cod"
-                        ? "Tổng thanh toán khi nhận hàng"
-                        : "Tổng thanh toán ngay"}
+                      {form.paymentMethod === "cod" ? "Tổng thanh toán khi nhận hàng" : "Tổng thanh toán ngay"}
                     </span>
                     <span
                       className="text-xl font-semibold"
@@ -504,7 +487,7 @@ export default function CheckoutPage() {
 
                 <button
                   type="submit"
-                  disabled={createOrder.isPending || itemsWithoutDates.length > 0 || (form.paymentMethod !== "store" && !selectedAddress)}
+                  disabled={createOrder.isPending || itemsWithoutDates.length > 0 || !selectedAddress}
                   className="mt-7 h-12 w-full text-[12px] font-semibold tracking-[0.22em] uppercase text-white disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ backgroundColor: ACCENT }}
                 >

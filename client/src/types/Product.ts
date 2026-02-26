@@ -10,12 +10,6 @@ export type Variant = {
   skuHint?: string;
 };
 
-export type VariantInventory = {
-  variantKey: { size: string; color?: string };
-  qtyAvailable: number;
-  qtyTotal: number;
-};
-
 export type ProductStatus = "active" | "archived";
 
 export type Product = {
@@ -39,7 +33,6 @@ export type Product = {
   createdAt: string;
   updatedAt: string;
   minPrice?: number; // Computed field from backend (min price in rentalTiers)
-  inventory?: VariantInventory[]; // Populated by findBySlug/findById
 };
 
 export type ProductListResponse = {

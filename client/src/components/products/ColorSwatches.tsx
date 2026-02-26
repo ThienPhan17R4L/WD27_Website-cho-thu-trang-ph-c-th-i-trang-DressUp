@@ -59,12 +59,10 @@ export function ColorSwatches({
   colors,
   value,
   onChange,
-  disabledColors = [],
 }: {
   colors: string[];
   value: string;
   onChange: (v: string) => void;
-  disabledColors?: string[];
 }) {
   if (!colors?.length) return <div className="text-sm text-slate-500">Không có màu</div>;
 
@@ -72,7 +70,6 @@ export function ColorSwatches({
     <div className="flex flex-wrap gap-3">
       {colors.map((c) => {
         const active = c === value;
-        const disabled = disabledColors.includes(c);
         const css = colorToCss(c);
 
         if (css) {
@@ -82,21 +79,16 @@ export function ColorSwatches({
             <button
               key={c}
               type="button"
-              onClick={() => !disabled && onChange(c)}
-              title={disabled ? `${c} (hết hàng)` : c}
-              aria-label={disabled ? `${c} hết hàng` : c}
-              disabled={disabled}
+              onClick={() => onChange(c)}
+              title={c}
+              aria-label={c}
               className={[
-                "h-10 w-10 ring-2 transition-all flex items-center justify-center relative",
-                disabled
-                  ? "opacity-40 cursor-not-allowed ring-slate-200"
-                  : active
-                  ? ACCENT_RING
-                  : "ring-slate-200 hover:ring-slate-300",
+                "h-10 w-10 ring-2 transition-all flex items-center justify-center",
+                active ? ACCENT_RING : "ring-slate-200 hover:ring-slate-300",
               ].join(" ")}
               style={{ backgroundColor: css, outline: "none" }}
             >
-              {active && !disabled && (
+              {active && (
                 <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden="true">
                   <path
                     d="M4 10l4 4 8-8"
@@ -105,11 +97,6 @@ export function ColorSwatches({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-                </svg>
-              )}
-              {disabled && (
-                <svg viewBox="0 0 20 20" fill="none" className="h-5 w-5 absolute" aria-hidden="true">
-                  <line x1="3" y1="17" x2="17" y2="3" stroke={light ? "#5a4038" : "#fff"} strokeWidth="2" strokeLinecap="round" />
                 </svg>
               )}
             </button>
@@ -121,15 +108,12 @@ export function ColorSwatches({
           <button
             key={c}
             type="button"
-            onClick={() => !disabled && onChange(c)}
-            title={disabled ? `${c} (hết hàng)` : c}
-            aria-label={disabled ? `${c} hết hàng` : c}
-            disabled={disabled}
+            onClick={() => onChange(c)}
+            title={c}
+            aria-label={c}
             className={[
               "h-10 px-3 text-[11px] font-medium ring-2 transition-all",
-              disabled
-                ? "opacity-40 cursor-not-allowed bg-[#f7f3ef] text-slate-500 ring-slate-200 line-through"
-                : active
+              active
                 ? `bg-[rgba(213,176,160,0.15)] text-[rgb(90,64,56)] ${ACCENT_RING}`
                 : "bg-[#f7f3ef] text-slate-700 ring-slate-200 hover:ring-slate-300",
             ].join(" ")}
